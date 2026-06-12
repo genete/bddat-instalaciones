@@ -1,8 +1,65 @@
-# Modelo de datos — Instalaciones eléctricas de alta tensión
+# Modelo de datos — Instalaciones eléctricas MT/AT (> 1 kV)
 
-## Referencia
+## Contexto normativo — Andalucía
 
-La estructura propuesta es coherente con el estándar **IEC CIM 61970/61968**
+### Distribuidoras
+
+En Andalucía, **eDistribución Redes Digitales S.L.U.** (antes Endesa Distribución)
+gestiona la práctica totalidad de la red de distribución. Existen algunas pequeñas
+distribuidoras locales (cooperativas, empresas municipales) registradas en la CNMC,
+pero en la práctica adoptan las normas de eDistribución o la normativa estatal
+directamente, sin normas propias diferenciadas.
+
+La Junta de Andalucía aprobó las normas particulares de eDistribución mediante
+Resolución de 5 de mayo de 2005 (BOJA), parcialmente derogada en 2019 y 2020
+al ser sustituida por las nuevas especificaciones estatales aprobadas en BOE.
+
+### Normas técnicas de referencia (eDistribución)
+
+| Código   | Nombre                                              | Ámbito                    |
+|----------|-----------------------------------------------------|---------------------------|
+| **NRZ001** | Especificaciones Particulares instalaciones distribución | MT ≤ 36 kV          |
+| **NRZ101** | Instalaciones privadas conectadas a la red. Generalidades | MT/BT privadas     |
+| **LRZ001** | Especificaciones líneas aéreas de AT                | AT > 36 kV                |
+| **NRZ002** | Instalaciones distribución en baja tensión          | BT ≤ 1.000 V              |
+
+Fuentes normativas:
+- [NRZ001 — eDistribución (PDF)](https://www.edistribucion.com/content/dam/edistribucion/ingenieriadered/NRZ001.pdf)
+- [LRZ001 Líneas Aéreas AT — eDistribución (PDF)](https://www.edistribucion.com/content/dam/edistribucion/conexion-a-la-red/normativa/LRZ001_EP%20L%C3%ADneas%20A%C3%A9reas%20de%20Alta%20Tensi%C3%B3n_v2.pdf)
+- [BOE-A-2021-2294 — Aprobación especificaciones eDistribución](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2021-2294)
+- [Energía eléctrica — Junta de Andalucía](https://www.juntadeandalucia.es/organismos/industriaenergiayminas/areas/energia/electricidad.html)
+- [Listado distribuidoras — CNMC](https://sede.cnmc.gob.es/listado/censo/1)
+
+### Niveles de tensión en Andalucía
+
+La normativa española distingue dos rangos dentro del ">1000 V" que usa el
+proyecto. El modelo debe soportar ambos:
+
+| Rango          | Denominación oficial | Tensiones habituales en Andalucía         |
+|----------------|----------------------|-------------------------------------------|
+| 1 kV – 36 kV   | **Media Tensión (MT)** | 15 kV (legado), **20 kV** (estándar nuevo) |
+| > 36 kV        | **Alta Tensión (AT)**  | 45 kV, 66 kV, 132 kV, 220 kV, 400 kV    |
+
+> La red de distribución de eDistribución en Andalucía opera principalmente a
+> **20 kV** (nuevo estándar que sustituye al 15 kV). Las tensiones superiores
+> (45 kV+) son de transporte/subtransporte.
+
+### Terminología eDistribución (vs denominaciones genéricas)
+
+| Este modelo         | Denominación eDistribución / sector       |
+|---------------------|-------------------------------------------|
+| `linea` aérea MT    | LAMT (Línea Aérea de Media Tensión)       |
+| `linea` subterránea MT | LSMT (Línea Subterránea de Media Tensión) |
+| `envolvente` CT     | CT (Centro de Transformación)             |
+| `envolvente` CS     | CS (Centro de Seccionamiento)             |
+| `elemento_corte`    | Celda de línea / celda de seccionamiento  |
+| `transformador` en CT | Transformador MT/BT                     |
+
+---
+
+## Referencia técnica internacional
+
+La estructura de tablas es coherente con el estándar **IEC CIM 61970/61968**
 (Common Information Model), que define cómo modelar redes eléctricas de forma
 interoperable. Se ha simplificado para el propósito de BDDAT, manteniendo los
 conceptos clave de topología Terminal–Nodo.
