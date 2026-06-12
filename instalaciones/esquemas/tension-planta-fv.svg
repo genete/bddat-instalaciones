@@ -1,0 +1,93 @@
+<svg viewBox="0 0 720 860" xmlns="http://www.w3.org/2000/svg" role="img" font-family="system-ui, sans-serif" font-size="13">
+  <title>Esquema de tensiones planta fotovoltaica hasta punto de entrega en red MT</title>
+  <desc>Diagrama vertical mostrando todos los elementos de una planta FV desde paneles hasta la red MT de 20kV, con niveles de tensión en cada etapa</desc>
+
+  <!-- Zonas de color de fondo -->
+  <rect x="30" y="30" width="660" height="260" rx="10" fill="#fff3cd" opacity="0.7"/>
+  <rect x="30" y="300" width="660" height="130" rx="10" fill="#fff3cd" opacity="0.4"/>
+  <rect x="30" y="440" width="660" height="390" rx="10" fill="#d1f0e0" opacity="0.6"/>
+
+  <!-- Etiquetas de zona -->
+  <text x="50" y="55" font-size="11" font-weight="600" fill="#888">FUERA DEL MODELO DE RED  ·  Regulación REBT (ITC-BT)</text>
+  <text x="50" y="455" font-size="11" font-weight="600" fill="#444">DENTRO DEL MODELO DE RED  ·  Regulación RD 337/2014 + RD 647/2020</text>
+
+  <!-- 1. Paneles FV -->
+  <rect x="190" y="65" width="340" height="54" rx="6" fill="#f0c040" stroke="#cca000" stroke-width="1.5"/>
+  <text x="360" y="87" text-anchor="middle" font-weight="600" fill="#333">Paneles FV / Strings</text>
+  <text x="360" y="106" text-anchor="middle" font-size="11" fill="#555">DC  ·  600–1500 V CC</text>
+
+  <line x1="360" y1="119" x2="360" y2="145" stroke="#999" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="355,145 365,145 360,155" fill="#999"/>
+  <text x="375" y="138" font-size="10" fill="#777">Cable DC</text>
+
+  <!-- 2. Caja combinadora -->
+  <rect x="240" y="155" width="240" height="50" rx="6" fill="#f0c040" stroke="#cca000" stroke-width="1.5"/>
+  <text x="360" y="175" text-anchor="middle" font-weight="600" fill="#333">Caja combinadora</text>
+  <text x="360" y="193" text-anchor="middle" font-size="11" fill="#555">DC  ·  600–1500 V CC</text>
+
+  <line x1="360" y1="205" x2="360" y2="231" stroke="#999" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="355,231 365,231 360,241" fill="#999"/>
+  <text x="375" y="224" font-size="10" fill="#777">Cable DC</text>
+
+  <!-- 3. Inversor (UGE) -->
+  <rect x="205" y="241" width="310" height="54" rx="6" fill="#ffd97d" stroke="#e6a800" stroke-width="2"/>
+  <text x="360" y="263" text-anchor="middle" font-weight="700" fill="#333">Inversor  (UGE)</text>
+  <text x="360" y="282" text-anchor="middle" font-size="11" fill="#555">Entrada DC 1500V  →  Salida AC 400 V  ·  50 Hz</text>
+
+  <!-- Frontera del modelo -->
+  <line x1="40" y1="310" x2="680" y2="310" stroke="#e05050" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="360" y="326" text-anchor="middle" font-size="11" font-weight="700" fill="#e05050">▲  Frontera del modelo de red  (RD 647/2020: la UGE es el inversor)  ▲</text>
+
+  <line x1="360" y1="295" x2="360" y2="355" stroke="#999" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="355,355 365,355 360,365" fill="#999"/>
+  <text x="375" y="340" font-size="10" fill="#777">Cable BT AC</text>
+
+  <!-- 4. Transformador elevador BT/MT -->
+  <rect x="190" y="365" width="340" height="54" rx="6" fill="#b8dff5" stroke="#5aaad0" stroke-width="2"/>
+  <text x="360" y="387" text-anchor="middle" font-weight="700" fill="#333">Transformador elevador</text>
+  <text x="360" y="406" text-anchor="middle" font-size="11" fill="#444">400 V BT  →  20 kV MT    ·    Dyn11</text>
+
+  <line x1="360" y1="419" x2="360" y2="458" stroke="#555" stroke-width="2"/>
+  <polygon points="355,458 365,458 360,468" fill="#555"/>
+  <text x="375" y="445" font-size="10" fill="#666">MT interna planta</text>
+
+  <!-- 5. Subestación / CS de planta -->
+  <rect x="165" y="468" width="390" height="54" rx="6" fill="#7dc8f0" stroke="#3a9ac8" stroke-width="2"/>
+  <text x="360" y="490" text-anchor="middle" font-weight="700" fill="#222">Subestación / CS de planta</text>
+  <text x="360" y="509" text-anchor="middle" font-size="11" fill="#333">20 kV MT  ·  Celdas de línea + medida + protección</text>
+
+  <line x1="360" y1="522" x2="360" y2="561" stroke="#555" stroke-width="2"/>
+  <polygon points="355,561 365,561 360,571" fill="#555"/>
+  <rect x="370" y="530" width="140" height="28" rx="4" fill="#e8f4fb" stroke="#acd"/>
+  <text x="440" y="543" text-anchor="middle" font-size="10" font-weight="600" fill="#333">Línea MT evacuación</text>
+  <text x="440" y="556" text-anchor="middle" font-size="10" fill="#555">LSMT / LAMT  ·  20 kV</text>
+
+  <!-- 6. Punto de entrega -->
+  <rect x="155" y="571" width="410" height="60" rx="6" fill="#4a90d9" stroke="#2260a8" stroke-width="2.5"/>
+  <text x="360" y="596" text-anchor="middle" font-weight="700" fill="white">Punto de entrega / conexión a red</text>
+  <text x="360" y="615" text-anchor="middle" font-size="11" fill="#ddeeff">20 kV MT  ·  Embarrado eDistribución  ·  Medida oficial</text>
+
+  <line x1="360" y1="631" x2="360" y2="668" stroke="#555" stroke-width="2"/>
+  <polygon points="355,668 365,668 360,678" fill="#555"/>
+
+  <!-- 7. Red de distribución -->
+  <rect x="130" y="678" width="460" height="54" rx="6" fill="#2260a8" stroke="#113878" stroke-width="2"/>
+  <text x="360" y="700" text-anchor="middle" font-weight="700" fill="white">Red MT eDistribución</text>
+  <text x="360" y="719" text-anchor="middle" font-size="11" fill="#b8d0f8">20 kV (estándar)  ·  NRZ001  ·  Andalucía</text>
+
+  <!-- Leyenda -->
+  <rect x="40" y="760" width="640" height="76" rx="6" fill="#f5f5f5" stroke="#ddd"/>
+  <text x="60" y="780" font-size="11" font-weight="700" fill="#333">Leyenda</text>
+
+  <rect x="60" y="790" width="14" height="14" rx="2" fill="#f0c040" stroke="#cca000"/>
+  <text x="80" y="802" font-size="11" fill="#444">Fuera del modelo — CC o BT AC interno (REBT)</text>
+
+  <rect x="60" y="811" width="14" height="14" rx="2" fill="#7dc8f0" stroke="#3a9ac8"/>
+  <text x="80" y="823" font-size="11" fill="#444">Dentro del modelo — MT/AT (RD 337/2014)</text>
+
+  <line x1="390" y1="798" x2="420" y2="798" stroke="#e05050" stroke-width="2" stroke-dasharray="6,3"/>
+  <text x="428" y="802" font-size="11" fill="#444">Frontera del modelo (UGE = inversor)</text>
+
+  <line x1="390" y1="818" x2="420" y2="818" stroke="#999" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="428" y="822" font-size="11" fill="#444">Conductor fuera del modelo</text>
+</svg>

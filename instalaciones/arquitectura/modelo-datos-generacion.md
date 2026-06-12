@@ -1,5 +1,11 @@
 # Modelo de datos — Elementos de generación y almacenamiento
 
+## Esquema de tensiones — de paneles al punto de entrega en red
+
+![Esquema tensiones planta FV](../esquemas/tension-planta-fv.svg)
+
+---
+
 ## Cobertura en IEC CIM 61970
 
 La edición **IEC 61970-301:2020 (Ed. 7)** cubre generación renovable y almacenamiento
