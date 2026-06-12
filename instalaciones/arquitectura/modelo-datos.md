@@ -35,14 +35,59 @@ Fuentes normativas:
 La normativa española distingue dos rangos dentro del ">1000 V" que usa el
 proyecto. El modelo debe soportar ambos:
 
-| Rango          | Denominación oficial | Tensiones habituales en Andalucía         |
-|----------------|----------------------|-------------------------------------------|
-| 1 kV – 36 kV   | **Media Tensión (MT)** | 15 kV (legado), **20 kV** (estándar nuevo) |
-| > 36 kV        | **Alta Tensión (AT)**  | 45 kV, 66 kV, 132 kV, 220 kV, 400 kV    |
+| Rango          | Denominación oficial   | Gestor principal | Tensiones habituales              |
+|----------------|------------------------|------------------|-----------------------------------|
+| 1 kV – 36 kV   | **Media Tensión (MT)** | eDistribución    | 15 kV (legado), **20 kV** (nuevo) |
+| > 36 kV        | **Alta Tensión (AT)**  | REE / Redeia     | 66 kV, 132 kV, **220 kV**, **400 kV** |
 
-> La red de distribución de eDistribución en Andalucía opera principalmente a
-> **20 kV** (nuevo estándar que sustituye al 15 kV). Las tensiones superiores
-> (45 kV+) son de transporte/subtransporte.
+> La zona gris son los 45 kV y 66 kV de subtransporte: pueden ser de REE o de
+> eDistribución según el caso. El campo `tension_nominal_kv` del modelo cubre
+> todos los rangos sin distinción estructural.
+
+---
+
+### Red Eléctrica de España (REE / Redeia) — particularidades
+
+REE es el único operador del sistema de transporte (TSO) en España. Gestiona la
+red AT (principalmente 220 kV y 400 kV) y es responsable de la operación del
+sistema eléctrico nacional.
+
+**Conclusión relevante para el modelo:** REE **no se desvía del estándar IEC CIM**.
+Al contrario, lo refuerza: intercambia modelos de red con ENTSO-E usando **CGMES**
+(Common Grid Model Exchange Standard), que es un perfil europeo directamente
+derivado de IEC CIM 61970. El modelo de tablas propuesto es por tanto compatible
+con REE sin cambios estructurales.
+
+#### Particularidades técnicas que sí afectan al modelo
+
+REE publica requisitos mínimos para instalaciones conectadas a su red de transporte
+(documento TI.E_02_040). Estos requisitos añaden campos que no son necesarios en MT:
+
+| Requisito REE                                  | Impacto en el modelo                                      |
+|------------------------------------------------|-----------------------------------------------------------|
+| Doble sistema de protección con baterías independientes | Campo en `elemento_proteccion`: `num_sistemas_proteccion` |
+| Interruptores en ambos lados de la interconexión | Regla topológica: elemento_corte siempre en frontera AT   |
+| Requisitos de automatización/SCADA/telecontrol | Campo `telecontrolado` ya contemplado en `elemento_corte` |
+| Coordinación de aislamiento específica por nivel de tensión | Campo `nivel_aislamiento_kv` en `elemento`                |
+| Red de tierra de alta disipación               | Ya contemplado en `elemento_proteccion` subtipo red_tierra |
+
+#### Normativa REE de referencia
+
+| Documento                        | Contenido                                                  |
+|----------------------------------|------------------------------------------------------------|
+| **TI.E_02_040**                  | Condiciones técnicas conexión terceros a red de transporte |
+| **Requisitos mínimos diseño Ed4**| Equipamiento mínimo instalaciones conectadas a REE         |
+| **ITC-RAT 01–23 (RD 337/2014)** | Reglamento AT nacional, base legal común con eDistribución |
+| **CGMES (ENTSO-E)**              | Perfil CIM para intercambio de modelos de red en Europa    |
+
+Fuentes:
+- [Condiciones técnicas conexión a red de transporte — REE (PDF)](https://www.ree.es/sites/default/files/01_ACTIVIDADES/Documentos/AccesoRed/TI.E_02_040_Ed5_Cond_Tecnic_Conex_Terceros_RdT_Peninsular.pdf)
+- [Requisitos mínimos diseño y equipamiento Ed4 — REE (PDF)](https://www.ree.es/sites/default/files/12_CLIENTES/Documentos/Instalaciones_conectadas_a_la_red_de_transporte_Requisitos_minimos_dise%C3%B1o_equipamiento_Ed4.pdf)
+- [RD 337/2014 ITC-RAT — BOE](https://www.boe.es/buscar/doc.php?id=BOE-A-2014-6084)
+- [Acuerdo eDistribución–REE para instalaciones en frontera (PDF)](https://www.edistribucion.com/content/dam/edistribucion/conexion-a-la-red/normativa/Acuerdo_EDRD_REE.pdf)
+- [CGMES conformance — DIgSILENT Ibérica](http://www.digsilentiberica.es/noticia/34/ENTSO-e-acredita-la-conformidad-de-DIgSILENT-PowerFactory-con-CGMES/)
+
+---
 
 ### Terminología eDistribución (vs denominaciones genéricas)
 
@@ -116,6 +161,8 @@ elemento → terminal → nodo   (topología)
 | tipo_elemento     | TEXT (enum)         | linea / corte / transformador / medida / proteccion / envolvente / soporte / embarrado |
 | tension_nominal_kv| NUMERIC             | Tensión nominal de operación en kV               |
 | estado            | TEXT                | en_servicio / fuera_servicio / en_construccion   |
+| gestor_red        | TEXT                | edistribucion / ree / privado / otro             |
+| nivel_aislamiento_kv | NUMERIC          | Nivel de aislamiento (relevante en AT/REE). Nullable |
 | envolvente_id     | UUID FK (elemento)  | Envolvente que lo contiene (nullable)            |
 | geom              | GEOMETRY(Point)     | Coordenada del elemento (PostGIS). Nullable para líneas |
 | notas             | TEXT                |                                                  |
@@ -195,6 +242,7 @@ Hereda de `elemento`.
 | calibre_a            | NUMERIC    | Intensidad nominal / fusión (nullable)        |
 | tension_descarga_kv  | NUMERIC    | Para pararrayos/descargadores (nullable)      |
 | resistencia_tierra_ohm | NUMERIC  | Para redes de tierra (nullable)               |
+| num_sistemas_proteccion | INTEGER | Sistemas de protección redundantes (REE exige 2 en AT) |
 
 ---
 
