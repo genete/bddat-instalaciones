@@ -7,6 +7,12 @@ La estructura propuesta es coherente con el estándar **IEC CIM 61970/61968**
 interoperable. Se ha simplificado para el propósito de BDDAT, manteniendo los
 conceptos clave de topología Terminal–Nodo.
 
+- [Common Information Model (electricity) — Wikipedia](https://en.wikipedia.org/wiki/Common_Information_Model_(electricity))
+- [smart-data-models/dataModel.EnergyCIM — GitHub](https://github.com/smart-data-models/dataModel.EnergyCIM)
+- [ConnectivityNode — CIM Datamodel (Zepben)](https://zepben.github.io/evolve/docs/cim/ewb/IEC61970/Base/Core/ConnectivityNode/)
+- [ACLineSegment — CIM Schema (LANL)](https://lanl-ansi.github.io/MG-RAVENS/_static/schema/ACLineSegment.html)
+- [La información geográfica en redes de distribución eléctrica — Geoinnova](https://geoinnova.org/blog-territorio/la-informacion-geografica-en-las-redes-de-distribucion-de-energia-electrica/)
+
 ---
 
 ## Principio de topología (de CIM)
