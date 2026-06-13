@@ -59,6 +59,7 @@ Precisiones importantes del RD 647/2020:
 
 | Norma                  | Contenido                                                          |
 |------------------------|--------------------------------------------------------------------|
+| **RD 997/2025**        | Redefine potencia instalada — bifacial ×1,15, almacenamiento, híbridas |
 | **RD 647/2020**        | Implementación códigos de red UE para generación y almacenamiento  |
 | **RD 1183/2020**       | Acceso y conexión a redes de transporte y distribución             |
 | **PO 12.2 (REE)**      | Requisitos mínimos instalaciones de generación conectadas a REE    |
@@ -67,6 +68,8 @@ Precisiones importantes del RD 647/2020:
 | **IEC 61970-302:2024** | Modelos dinámicos: aerogeneradores tipo 1–4, inversores, baterías  |
 
 Fuentes:
+- [RD 997/2025 — BOE](https://www.boe.es/buscar/act.php?id=BOE-A-2025-22434)
+- [Cómo calcular potencia instalada RD 997/2025 — Haz Energía](https://hazenergia.es/como-calcular-la-potencia-instalada-segun-el-rd-997-2025-en-plantas-renovables-e-hibridas/)
 - [RD 647/2020 — BOE](https://boe.es/eli/es/rd/2020/07/07/647)
 - [PO 12.2 REE instalaciones generación — ESIOS (PDF)](https://api.esios.ree.es/documents/449/download?locale=es)
 - [PowerElectronicsUnit — CIM Datamodel (Zepben)](https://zepben.github.io/evolve/docs/cim/ewb/IEC61970/Base/Generation/Production/PowerElectronicsUnit/)
@@ -85,11 +88,20 @@ Hereda de `elemento` (misma tabla base que el resto de la red).
 |-----------------------|------------|--------------------------------------------------------------|
 | elemento_id           | UUID PK/FK |                                                              |
 | subtipo               | TEXT       | fotovoltaica / eolica / hidraulica / almacenamiento / hibrida / cogeneracion |
-| potencia_instalada_kw | NUMERIC    | Potencia pico instalada total en kW                          |
-| potencia_nominal_kw   | NUMERIC    | Potencia nominal de conexión a red en kW                     |
+| potencia_nominal_kw   | NUMERIC    | Potencia nominal de conexión a red en kW (dato del proyecto) |
 | tension_conexion_kv   | NUMERIC    | Tensión en el punto de conexión a la red MT/AT               |
 | num_unidades          | INTEGER    | Número de UGE (inversores, aerogeneradores, módulos batería)  |
 | factor_capacidad      | NUMERIC    | Factor de capacidad típico (0–1), orientativo                |
+
+> **`potencia_instalada_kw` a nivel de planta** no es columna almacenada sino
+> agregación calculada mediante la vista `v_potencia_planta` (Σ subcampos).
+> Ver ADR-005.
+
+> **Naturaleza del dato**: `potencia_instalada_kw` es un dato **administrativo-legal**,
+> no operacional. Determina la competencia para tramitar la autorización (umbral
+> 50 MW de la Junta de Andalucía) y el régimen retributivo. No refleja la potencia
+> en servicio en un instante dado — eso depende del estado de cada elemento y se
+> calcula en el backend filtrando por estado. Ver ADR-005.
 
 ---
 
@@ -127,6 +139,59 @@ Complementa `unidad_generacion` cuando `subtipo = modulo_bateria` o
 | ciclos_vida           | INTEGER    | Ciclos de carga/descarga nominales                           |
 | dod_pct               | NUMERIC    | Profundidad de descarga máxima en % (Depth of Discharge)     |
 | soc_inicial_pct       | NUMERIC    | Estado de carga inicial nominal en %                         |
+
+---
+
+### `subcampo_fv` — agrupación operativa de paneles bajo un inversor
+
+Representa la "isla de paneles" que conecta a un inversor concreto. Es la unidad
+mínima con potencia instalada propia a efectos legales (RD 997/2025 Art. 5).
+Nomenclatura elegida por ser el término estándar en el sector FV español. Ver ADR-004.
+
+No hereda de `elemento`: es un activo interno de la planta (lado DC), fuera del
+modelo de red MT. Ver ADR-003.
+
+| Columna                    | Tipo             | Descripción                                                   |
+|----------------------------|------------------|---------------------------------------------------------------|
+| id                         | UUID PK          |                                                               |
+| elemento_generacion_id     | UUID FK          | Planta a la que pertenece                                     |
+| unidad_generacion_id       | UUID FK          | Inversor (UGE) al que conectan estos paneles                  |
+| nombre                     | TEXT             | Denominación operativa ("Zona A", "Bloque 3", "Tracker 12")   |
+| potencia_pico_modulos_kwp  | NUMERIC          | Σ potencias pico módulos en STC (kWp)                        |
+| potencia_nominal_inversor_kw | NUMERIC        | Potencia nominal AC del inversor (kW)                         |
+| es_bifacial                | BOOLEAN          | Si los módulos son bifaciales                                 |
+| factor_bifacial            | NUMERIC          | Factor cara trasera. Default 1.15 (RD 997/2025 Art. 5.2)     |
+| **potencia_instalada_kw**  | NUMERIC GENERATED | `LEAST(potencia_pico × factor_bifacial_efectivo, inversor)` — valor legal RD 997/2025 |
+| num_modulos                | INTEGER          | Número total de paneles                                       |
+| num_strings                | INTEGER          | Número de strings                                             |
+| modulos_por_string         | INTEGER          | Paneles en serie por string                                   |
+| potencia_modulo_wp         | NUMERIC          | Potencia unitaria del panel en Wp (STC)                       |
+| tecnologia_modulo          | TEXT             | monocristalino / policristalino / CdTe / CIGS / HJT           |
+| orientacion_grados         | NUMERIC          | Azimut (0°=Norte, 90°=Este, 180°=Sur)                        |
+| inclinacion_grados         | NUMERIC          | Ángulo de inclinación sobre horizontal                        |
+| seguimiento                | TEXT             | fijo / un_eje / dos_ejes                                      |
+| geom                       | GEOMETRY(Polygon)| Polígono del subcampo (PostGIS, nullable)                     |
+
+**Fórmula columna generada** (PostgreSQL):
+
+```sql
+potencia_instalada_kw NUMERIC GENERATED ALWAYS AS (
+  LEAST(
+    potencia_pico_modulos_kwp * CASE WHEN es_bifacial THEN factor_bifacial ELSE 1.0 END,
+    potencia_nominal_inversor_kw
+  )
+) STORED
+```
+
+**Vista de agregación a nivel de planta** (no columna almacenada):
+
+```sql
+CREATE VIEW v_potencia_planta AS
+SELECT elemento_generacion_id,
+       SUM(potencia_instalada_kw) AS potencia_instalada_total_kw
+FROM subcampo_fv
+GROUP BY elemento_generacion_id;
+```
 
 ---
 
