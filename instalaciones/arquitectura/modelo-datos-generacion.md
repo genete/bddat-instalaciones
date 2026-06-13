@@ -82,11 +82,11 @@ Fuentes:
 
 ### `elemento_generacion` — planta o parque (nivel MGE)
 
-Hereda de `elemento` (misma tabla base que el resto de la red).
+Extiende `activo_red` (misma tabla base que el resto de la red).
 
 | Columna               | Tipo       | Descripción                                                  |
 |-----------------------|------------|--------------------------------------------------------------|
-| elemento_id           | UUID PK/FK |                                                              |
+| activo_id             | UUID PK/FK |                                                              |
 | subtipo               | TEXT       | fotovoltaica / eolica / hidraulica / almacenamiento / hibrida / cogeneracion |
 | potencia_nominal_kw   | NUMERIC    | Potencia nominal de conexión a red en kW (dato del proyecto) |
 | tension_conexion_kv   | NUMERIC    | Tensión en el punto de conexión a la red MT/AT               |
@@ -220,8 +220,8 @@ transformador del aerogenerador (o del parque), no dentro de la góndola.
 
 ## Conectividad con el resto del modelo
 
-`elemento_generacion` **sí hereda de `elemento`** y por tanto tiene terminales
-y conecta a nodos como cualquier otro elemento de red:
+`elemento_generacion` **extiende `activo_red`** y por tanto tiene terminales
+y conecta a nodos como cualquier otro activo de red:
 
 - Terminal 1 del elemento_generacion → nodo MT de conexión
 - Si tiene transformador elevador propio: terminal 2 → nodo BT interno

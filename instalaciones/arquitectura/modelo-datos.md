@@ -122,12 +122,12 @@ conceptos clave de topología Terminal–Nodo.
 La conectividad eléctrica se modela con dos conceptos:
 
 - **`nodo`** (ConnectivityNode): punto eléctrico donde se unen conductores.
-  No es un elemento físico, es el "cable invisible" que une terminales.
-- **`terminal`**: extremo de conexión de un elemento. Cada elemento tiene
+  No es un activo físico, es el "cable invisible" que une terminales.
+- **`terminal`**: extremo de conexión de un activo. Cada activo tiene
   tantos terminales como puntos de conexión (una línea tiene 2, un
-  transformador tiene 2 o 3, un embarrado tiene N).
+  transformador tiene 2, un embarrado tiene 1).
 
-Un elemento A y un elemento B están conectados cuando comparten el mismo `nodo`
+Un activo A y un activo B están conectados cuando comparten el mismo `nodo`
 a través de sus respectivos `terminal`.
 
 ---
@@ -135,63 +135,70 @@ a través de sus respectivos `terminal`.
 ## Diagrama de tablas
 
 ```
-elemento (base)
+activo_red (base — SQL estándar, sin PostGIS)
   ├── linea
   ├── elemento_corte
   ├── transformador
   ├── elemento_medida
   ├── elemento_proteccion
-  ├── envolvente          ←── otros elementos pueden tener FK a envolvente
+  ├── envolvente          ←── otros activos pueden tener FK a envolvente
   ├── soporte
   └── embarrado
 
-elemento → terminal → nodo   (topología)
+activo_red → terminal → nodo         (topología eléctrica)
+activo_red → geometria_elemento      (geografía, PostGIS aislado)
 ```
 
 ---
 
 ## Tablas
 
-### `elemento` — tabla base para todos los activos
+### `activo_red` — tabla base para todos los activos de la red
 
-| Columna           | Tipo                | Descripción                                      |
-|-------------------|---------------------|--------------------------------------------------|
-| id                | UUID PK             |                                                  |
-| nombre            | TEXT                | Denominación del elemento                        |
-| tipo_elemento     | TEXT (enum)         | linea / corte / transformador / medida / proteccion / envolvente / soporte / embarrado |
-| tension_nominal_kv| NUMERIC             | Tensión nominal de operación en kV               |
-| estado            | TEXT                | en_servicio / fuera_servicio / en_construccion   |
-| gestor_red        | TEXT                | edistribucion / ree / privado / otro             |
-| nivel_aislamiento_kv | NUMERIC          | Nivel de aislamiento (relevante en AT/REE). Nullable |
-| envolvente_id     | UUID FK (elemento)  | Envolvente que lo contiene (nullable)            |
-| geom              | GEOMETRY(Point)     | Coordenada del elemento (PostGIS). Nullable para líneas |
-| notas             | TEXT                |                                                  |
+Tabla SQL estándar. **No contiene ninguna columna PostGIS.**
+La geometría vive en la tabla lateral `geometria_elemento` (ver ADR-002).
+
+Incluye activos conductores (líneas, seccionadores, transformadores…) y no
+conductores (apoyos, arquetas, canalizaciones). El campo `tipo_elemento`
+distingue unos de otros; las reglas de cuántos terminales corresponden a cada
+tipo se validan en el backend (ver ADR-001).
+
+| Columna              | Tipo               | Descripción                                           |
+|----------------------|--------------------|-------------------------------------------------------|
+| id                   | UUID PK            |                                                       |
+| nombre               | TEXT               | Denominación del activo                               |
+| tipo_elemento        | TEXT               | linea / corte / transformador / medida / proteccion / envolvente / soporte / embarrado |
+| tension_nominal_kv   | NUMERIC            | Tensión nominal de operación en kV                    |
+| estado               | TEXT               | en_servicio / fuera_servicio / en_construccion        |
+| gestor_red           | TEXT               | edistribucion / ree / privado / otro                  |
+| nivel_aislamiento_kv | NUMERIC            | Nivel de aislamiento (relevante en AT/REE). Nullable  |
+| envolvente_id        | UUID FK(activo_red)| Envolvente que lo contiene (nullable)                 |
+| notas                | TEXT               |                                                       |
 
 ---
 
 ### `linea` — conductores aéreos, subterráneos, cables aislados
 
-Hereda de `elemento` (FK `elemento_id`).
+Extiende `activo_red` (FK `activo_id`). La traza geográfica va en `geometria_elemento`.
 
 | Columna           | Tipo       | Descripción                                      |
 |-------------------|------------|--------------------------------------------------|
-| elemento_id       | UUID PK/FK |                                                  |
+| activo_id         | UUID PK/FK |                                                  |
 | subtipo           | TEXT       | aerea / subterranea / cable_aislado / conductor_desnudo |
 | conductor_material| TEXT       | aluminio / cobre / ACSR / etc.                   |
 | seccion_mm2       | NUMERIC    | Sección del conductor en mm²                     |
-| longitud_m        | NUMERIC    | Longitud en metros                               |
+| longitud_m        | NUMERIC    | Longitud en metros (puede calcularse de la traza) |
 | num_circuitos     | INTEGER    | Número de circuitos (terna, doble circuito...)   |
-| geom_traza        | GEOMETRY(LineString) | Traza geográfica de la línea (PostGIS)  |
 
 ---
 
 ### `elemento_corte` — seccionadores, interruptores, reconectadores
 
-Hereda de `elemento`.
+Extiende `activo_red` (FK `activo_id`).
 
 | Columna           | Tipo       | Descripción                                      |
 |-------------------|------------|--------------------------------------------------|
-| elemento_id       | UUID PK/FK |                                                  |
+| activo_id         | UUID PK/FK |                                                  |
 | subtipo           | TEXT       | seccionador / interruptor / interruptor_automatico / reconectador / fusible_corte |
 | accionamiento     | TEXT       | manual / motorizado / telecontrolado             |
 | estado_normal     | TEXT       | normalmente_abierto / normalmente_cerrado        |
@@ -202,11 +209,11 @@ Hereda de `elemento`.
 
 ### `transformador` — transformadores de potencia y distribución
 
-Hereda de `elemento`.
+Extiende `activo_red` (FK `activo_id`).
 
 | Columna              | Tipo       | Descripción                                   |
 |----------------------|------------|-----------------------------------------------|
-| elemento_id          | UUID PK/FK |                                               |
+| activo_id            | UUID PK/FK |                                               |
 | potencia_kva         | NUMERIC    | Potencia nominal en kVA                       |
 | tension_primario_kv  | NUMERIC    | Tensión en el lado de alta                    |
 | tension_secundario_kv| NUMERIC    | Tensión en el lado de baja                    |
@@ -219,11 +226,11 @@ Hereda de `elemento`.
 
 ### `elemento_medida` — transformadores de medida (TI, TT) y contadores
 
-Hereda de `elemento`.
+Extiende `activo_red` (FK `activo_id`).
 
 | Columna              | Tipo       | Descripción                                   |
 |----------------------|------------|-----------------------------------------------|
-| elemento_id          | UUID PK/FK |                                               |
+| activo_id            | UUID PK/FK |                                               |
 | subtipo              | TEXT       | transformador_intensidad / transformador_tension / contador / analizador |
 | relacion_primario    | NUMERIC    | Ej: 200 (para TI 200/5)                       |
 | relacion_secundario  | NUMERIC    | Ej: 5                                         |
@@ -233,11 +240,11 @@ Hereda de `elemento`.
 
 ### `elemento_proteccion` — fusibles, pararrayos, redes de tierra
 
-Hereda de `elemento`.
+Extiende `activo_red` (FK `activo_id`).
 
 | Columna              | Tipo       | Descripción                                   |
 |----------------------|------------|-----------------------------------------------|
-| elemento_id          | UUID PK/FK |                                               |
+| activo_id            | UUID PK/FK |                                               |
 | subtipo              | TEXT       | fusible / pararrayos / descargador_sobretension / red_tierra / rele |
 | calibre_a            | NUMERIC    | Intensidad nominal / fusión (nullable)        |
 | tension_descarga_kv  | NUMERIC    | Para pararrayos/descargadores (nullable)      |
@@ -248,11 +255,11 @@ Hereda de `elemento`.
 
 ### `envolvente` — contenedores de elementos
 
-Hereda de `elemento`.
+Extiende `activo_red` (FK `activo_id`).
 
 | Columna              | Tipo       | Descripción                                   |
 |----------------------|------------|-----------------------------------------------|
-| elemento_id          | UUID PK/FK |                                               |
+| activo_id            | UUID PK/FK |                                               |
 | subtipo              | TEXT       | centro_transformacion / subestacion / armario_seccionamiento / celda_prefabricada |
 | propietario          | TEXT       | Propietario/gestor de la instalación          |
 | acceso               | TEXT       | publico / privado / restringido               |
@@ -261,11 +268,11 @@ Hereda de `elemento`.
 
 ### `soporte` — apoyos, arquetas, canalizaciones, empalmes
 
-Hereda de `elemento`.
+Extiende `activo_red` (FK `activo_id`).
 
 | Columna              | Tipo       | Descripción                                   |
 |----------------------|------------|-----------------------------------------------|
-| elemento_id          | UUID PK/FK |                                               |
+| activo_id            | UUID PK/FK |                                               |
 | subtipo              | TEXT       | apoyo / empalme / arqueta / canalizacion / herraje |
 | material             | TEXT       | hormigon / metalico / madera / fibra          |
 | altura_m             | NUMERIC    | Altura del apoyo en metros (nullable)         |
@@ -274,11 +281,11 @@ Hereda de `elemento`.
 
 ### `embarrado` — conjunto de barras de igual tensión
 
-Hereda de `elemento`.
+Extiende `activo_red` (FK `activo_id`).
 
 | Columna              | Tipo       | Descripción                                   |
 |----------------------|------------|-----------------------------------------------|
-| elemento_id          | UUID PK/FK |                                               |
+| activo_id            | UUID PK/FK |                                               |
 | intensidad_maxima_a  | NUMERIC    | Corriente máxima admisible                    |
 | num_barras           | INTEGER    | Número de barras del sistema (simple/doble)   |
 
@@ -321,13 +328,44 @@ No es un elemento físico: es el punto lógico donde varios terminales confluyen
 
 ---
 
+### `geometria_elemento` — geometría PostGIS (tabla lateral aislada)
+
+Única tabla del modelo con dependencia de PostGIS. Ver ADR-002 para justificación
+del aislamiento y estrategia de migración.
+
+Un activo puede existir sin geometría (durante tramitación) y recibirla después.
+
+| Columna      | Tipo                  | Descripción                                          |
+|--------------|-----------------------|------------------------------------------------------|
+| activo_id    | UUID PK FK(activo_red)| Activo al que pertenece esta geometría               |
+| geom         | GEOMETRY(Geometry, 4326) | Punto, línea o polígono en WGS84                  |
+| tipo_geom    | TEXT                  | punto / linea / poligono                             |
+| srid_origen  | INTEGER               | SRID del shape recibido del titular (ej: 25830)      |
+| fuente       | TEXT                  | titular / digitalizado / gps / importado             |
+
+**Uso de coordenadas:**
+- Almacenamiento: **WGS84 (SRID 4326)**
+- Exportación a administraciones (Junta de Andalucía): **ETRS89 UTM30N (SRID 25830)**
+  mediante `ST_Transform(geom, 25830)` al exportar.
+
+**Flujo de entrada de shapes del titular:**
+```
+Shape titular (.shp / .gpkg)  →  ogr2ogr / GeoPandas  →  geometria_elemento
+```
+
+**Flujo de exportación a administración:**
+```
+geometria_elemento  →  ST_Transform(25830)  →  .shp / .gpkg para Junta de Andalucía
+```
+
+---
+
 ## Notas de integración GIS
 
-- Usar **PostGIS** con SRID 4326 (WGS84) para coordenadas en `geom` y `geom_traza`.
-- La topología completa de la red puede exportarse como grafo para análisis
-  con **pgRouting** o herramientas GIS externas (QGIS, ArcGIS).
-- `elemento.envolvente_id` permite agrupar elementos físicamente
-  y construir la jerarquía CT → celda → transformador.
+- La topología eléctrica (qué afecta a qué) se recorre por `terminal` + `nodo`, no por GIS.
+- Los cálculos espaciales (solapamientos, cruces, extensión por municipio) operan
+  sobre `geometria_elemento` sin tocar el núcleo del modelo.
+- `activo_red.envolvente_id` permite construir la jerarquía CT → celda → transformador.
 
 ---
 
