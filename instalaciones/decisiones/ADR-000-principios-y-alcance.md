@@ -124,6 +124,16 @@ El activo tiene **dos ejes de estado**, y **ninguno se almacena aquí** (P5):
 6. Este modelo es **agnóstico** respecto a la máquina de estados administrativa y a
    la titularidad.
 
+> **Nota para BDDAT (recomendación de diseño).** Aunque estado y titular vivan en
+> BDDAT, **no deben colgar del subsistema de expedientes**, sino modelarse como
+> **metadatos de la instalación/activo** — calculados o almacenados a nivel del
+> activo, agregando la información de todos los expedientes que le afectan. Así un
+> mismo activo se **reutiliza en varios expedientes** (alta, modificación, baja) sin
+> duplicarse ni quedar atado a uno concreto. Matiz: el estado *administrativo* es
+> por expediente (relación activo × expediente); el estado *físico consolidado* y el
+> *titular vigente* son **metadatos transversales del activo**, deducidos del
+> conjunto de sus expedientes.
+
 > En una frase: **todo lo que cambia con el tiempo por causas administrativas
 > (estado, titular) es indirecto y deducible; el activo solo guarda lo que lo
 > define técnicamente.**
