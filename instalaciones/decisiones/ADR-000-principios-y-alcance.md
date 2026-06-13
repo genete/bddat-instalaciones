@@ -49,9 +49,11 @@ cuando hay geometría. (Desarrollado en ADR-002.)
 El criterio de "qué campos" lo marca la autorización y el registro, no un proyecto
 de ingeniería. Un único esquema cubre distribución, transporte y generación.
 
-**P5 — El activo tiene dos ejes de estado, ortogonales y acoplados por eventos.**
-Ver sección "Frontera de alcance". El eje físico es del activo; el administrativo
-es de BDDAT.
+**P5 — El estado del activo es deducible, no almacenable.**
+El activo tiene dos ejes de estado (físico y administrativo), ortogonales y
+acoplados por eventos. **Ninguno se almacena en el activo**: el físico se deduce de
+las resoluciones firmes; el administrativo es la relación activo × expediente.
+Ambos viven en BDDAT. Ver sección "Frontera de alcance".
 
 **P6 — Identidad persistente del activo.**
 Un activo conserva su `id` a través de los expedientes y estados por los que pasa
@@ -88,38 +90,52 @@ mantenibilidad para BDDAT, sin temor a "desviarse del estándar".
 
 ## Frontera de alcance: qué es de este modelo y qué es de BDDAT
 
-El activo tiene **dos ejes de estado** (P5):
+**Principio rector: este modelo almacena solo lo técnico. El estado y el titular
+NO se almacenan en el activo — son deducibles/indirectos desde BDDAT, vinculados
+por el `id` del activo.**
 
-| Eje              | Estados (ejemplos)                                                       | Dónde vive                       | Cardinalidad |
-|------------------|--------------------------------------------------------------------------|----------------------------------|--------------|
-| **Físico**       | no existe/proyectado · construido · en servicio · fuera de servicio · desmantelado | Atributo del **activo** (este modelo) | Único en cada instante |
-| **Administrativo** | solicitado · en tramitación · autorizado (AAP) · autorizado construir (AAC) · autorizado explotar (APS) · inscrito · desestimado · cerrado · desmantelado | **BDDAT** (relación activo × expediente) | Múltiple en el tiempo |
+El activo tiene **dos ejes de estado**, y **ninguno se almacena aquí** (P5):
+
+| Eje | Estados (ejemplos) | Cómo se obtiene | Cardinalidad |
+|---|---|---|---|
+| **Físico** | no existe/proyectado · construido · en servicio · fuera de servicio · desmantelado | **Deducible** de las resoluciones firmes (en BDDAT). No se almacena. | Único en cada instante |
+| **Administrativo** | solicitado · en tramitación · autorizado (AAP) · autorizado construir (AAC) · autorizado explotar (APS) · inscrito · desestimado · cerrado · desmantelado | Relación activo × expediente (en BDDAT). | Múltiple en el tiempo |
 
 **Reglas de la frontera:**
 
 1. **Este modelo define solo la parte técnica**: identidad, características
-   eléctricas y geometría del activo, más su **estado físico**.
-2. **El estado físico se infiere de la tramitación**, no se observa ni se edita
-   libremente. En un sistema administrativo, "en servicio" significa "existe acta
-   de puesta en servicio firme", no una medida de campo. Si la realidad de campo
-   no coincide con lo tramitado, eso es otro asunto (infracción, expediente
-   sancionador) ajeno a este modelo.
+   eléctricas y geometría del activo. **No almacena estado** (ni físico ni
+   administrativo) **ni titularidad**.
+2. **El estado físico es deducible, no almacenable.** Se infiere de las
+   resoluciones firmes de BDDAT: "en servicio" significa "existe acta de puesta en
+   servicio firme", no una medida de campo. Guardarlo en el activo sería una falsa
+   fuente de verdad. Si la realidad de campo no coincide con lo tramitado, es otro
+   asunto (infracción, expediente sancionador), ajeno a este modelo.
 3. **El eje administrativo, el expediente, las resoluciones y la máquina de
-   estados de tramitación pertenecen a BDDAT**, no a este modelo. BDDAT los
-   modela en tablas propias que referencian al activo por su `id`.
-4. **El gancho de referencia son los `id` de los activos.** BDDAT añade los
-   atributos administrativos desde fuera, vinculándose por esos `id`, y puede
+   estados de tramitación pertenecen a BDDAT**. BDDAT los modela en tablas propias
+   que referencian al activo por su `id`.
+4. **La titularidad también es indirecta.** No es un campo del activo: es una
+   relación temporal (con alta, baja y causa) que vive en una tabla de BDDAT y
+   referencia al activo por su `id`. Un mismo activo puede cambiar de titular sin
+   tocar su definición técnica.
+5. **El gancho de referencia son los `id` de los activos.** Todo lo no-técnico
+   (estado, titular, expediente) se vincula desde fuera por esos `id`. BDDAT puede
    dividir/agrupar activos por sus `id`.
-5. Este modelo es **agnóstico** respecto a la máquina de estados administrativa.
+6. Este modelo es **agnóstico** respecto a la máquina de estados administrativa y a
+   la titularidad.
+
+> En una frase: **todo lo que cambia con el tiempo por causas administrativas
+> (estado, titular) es indirecto y deducible; el activo solo guarda lo que lo
+> define técnicamente.**
 
 ---
 
 ## Consecuencias
 
-- La frontera **no influye** en el modelo de tablas técnicas, sus relaciones ni
-  los atributos de cada activo. Es una delimitación conceptual.
-- El estado físico es un atributo del activo (su forma exacta se concreta en la
-  revisión de atributos); su valor lo alimenta la tramitación de BDDAT.
-- Ninguna tabla de expediente, resolución o estado administrativo se define en
-  este repositorio.
-- Los demás ADR (001–005) se interpretan bajo estos principios.
+- La frontera **no influye** en el modelo de tablas técnicas: es una delimitación
+  conceptual.
+- `activo_red` **no tiene** campos `estado`, `gestor_red`/titular ni similares
+  (se podaron por esta razón; ver modelo-datos.md y ADR-006 C3).
+- Ninguna tabla de expediente, resolución, estado administrativo o titularidad se
+  define en este repositorio.
+- Los demás ADR (001–006) se interpretan bajo estos principios.
