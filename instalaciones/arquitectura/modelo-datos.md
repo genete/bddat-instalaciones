@@ -1,5 +1,13 @@
 # Modelo de datos — Instalaciones eléctricas MT/AT (> 1 kV)
 
+> Este documento describe la **parte técnica** de los activos de red. El estado
+> administrativo, el expediente y la tramitación pertenecen a BDDAT y no se
+> modelan aquí (ver [ADR-000](../decisiones/ADR-000-principios-y-alcance.md)).
+> Los principios de diseño están en [ADR-000](../decisiones/ADR-000-principios-y-alcance.md),
+> la topología y reglas en [ADR-001](../decisiones/ADR-001-topologia-terminal-nodo.md),
+> la estructura y portabilidad en [ADR-002](../decisiones/ADR-002-herencia-tablas.md)
+> y los criterios de modelado en [ADR-006](../decisiones/ADR-006-criterios-modelado.md).
+
 ## Contexto normativo — Andalucía
 
 ### Distribuidoras
@@ -33,7 +41,7 @@ Fuentes normativas:
 ### Niveles de tensión en Andalucía
 
 La normativa española distingue dos rangos dentro del ">1000 V" que usa el
-proyecto. El modelo debe soportar ambos:
+proyecto. El modelo soporta ambos mediante el catálogo de tensiones:
 
 | Rango          | Denominación oficial   | Gestor principal | Tensiones habituales              |
 |----------------|------------------------|------------------|-----------------------------------|
@@ -41,322 +49,343 @@ proyecto. El modelo debe soportar ambos:
 | > 36 kV        | **Alta Tensión (AT)**  | REE / Redeia     | 66 kV, 132 kV, **220 kV**, **400 kV** |
 
 > La zona gris son los 45 kV y 66 kV de subtransporte: pueden ser de REE o de
-> eDistribución según el caso. El campo `tension_nominal_kv` del modelo cubre
-> todos los rangos sin distinción estructural.
+> eDistribución según el caso. El catálogo de tensiones cubre todos los rangos
+> sin distinción estructural.
 
 ---
 
 ### Red Eléctrica de España (REE / Redeia) — particularidades
 
 REE es el único operador del sistema de transporte (TSO) en España. Gestiona la
-red AT (principalmente 220 kV y 400 kV) y es responsable de la operación del
-sistema eléctrico nacional.
+red AT (principalmente 220 kV y 400 kV) y la operación del sistema nacional.
 
-**Conclusión relevante para el modelo:** REE **no se desvía del estándar IEC CIM**.
-Al contrario, lo refuerza: intercambia modelos de red con ENTSO-E usando **CGMES**
-(Common Grid Model Exchange Standard), que es un perfil europeo directamente
-derivado de IEC CIM 61970. El modelo de tablas propuesto es por tanto compatible
-con REE sin cambios estructurales.
-
-#### Particularidades técnicas que sí afectan al modelo
+**Conclusión para el modelo:** REE **no se desvía del estándar IEC CIM**. Lo
+refuerza: intercambia modelos con ENTSO-E vía **CGMES** (perfil europeo derivado
+de IEC CIM 61970). El modelo es compatible con REE sin cambios estructurales.
 
 REE publica requisitos mínimos para instalaciones conectadas a su red de transporte
-(documento TI.E_02_040). Estos requisitos añaden campos que no son necesarios en MT:
+(TI.E_02_040). Su impacto en este modelo es menor y se resuelve con los campos ya
+previstos:
 
-| Requisito REE                                  | Impacto en el modelo                                      |
-|------------------------------------------------|-----------------------------------------------------------|
-| Doble sistema de protección con baterías independientes | Campo en `elemento_proteccion`: `num_sistemas_proteccion` |
-| Interruptores en ambos lados de la interconexión | Regla topológica: elemento_corte siempre en frontera AT   |
-| Requisitos de automatización/SCADA/telecontrol | Campo `telecontrolado` ya contemplado en `elemento_corte` |
-| Coordinación de aislamiento específica por nivel de tensión | Campo `nivel_aislamiento_kv` en `elemento`                |
-| Red de tierra de alta disipación               | Ya contemplado en `elemento_proteccion` subtipo red_tierra |
-
-#### Normativa REE de referencia
-
-| Documento                        | Contenido                                                  |
-|----------------------------------|------------------------------------------------------------|
-| **TI.E_02_040**                  | Condiciones técnicas conexión terceros a red de transporte |
-| **Requisitos mínimos diseño Ed4**| Equipamiento mínimo instalaciones conectadas a REE         |
-| **ITC-RAT 01–23 (RD 337/2014)** | Reglamento AT nacional, base legal común con eDistribución |
-| **CGMES (ENTSO-E)**              | Perfil CIM para intercambio de modelos de red en Europa    |
+| Requisito REE | Cómo se refleja en el modelo |
+|---|---|
+| Doble sistema de protección con baterías independientes | Se describe en la celda de protección (`elemento_corte`, función=protección) / `notas` |
+| Interruptores en ambos lados de la interconexión | Topología: sendos `elemento_corte` en la frontera |
+| Automatización / SCADA / telecontrol | `elemento_corte.accionamiento = telecontrolado` |
+| Coordinación de aislamiento por nivel de tensión | `nivel_aislamiento` (catálogo) en `elemento_corte` y `linea` |
+| Red de tierra de alta disipación | `red_tierra.resistencia_ohm` |
 
 Fuentes:
-- [Condiciones técnicas conexión a red de transporte — REE (PDF)](https://www.ree.es/sites/default/files/01_ACTIVIDADES/Documentos/AccesoRed/TI.E_02_040_Ed5_Cond_Tecnic_Conex_Terceros_RdT_Peninsular.pdf)
-- [Requisitos mínimos diseño y equipamiento Ed4 — REE (PDF)](https://www.ree.es/sites/default/files/12_CLIENTES/Documentos/Instalaciones_conectadas_a_la_red_de_transporte_Requisitos_minimos_dise%C3%B1o_equipamiento_Ed4.pdf)
+- [TI.E_02_040 — REE (PDF)](https://www.ree.es/sites/default/files/01_ACTIVIDADES/Documentos/AccesoRed/TI.E_02_040_Ed5_Cond_Tecnic_Conex_Terceros_RdT_Peninsular.pdf)
+- [Requisitos mínimos diseño Ed4 — REE (PDF)](https://www.ree.es/sites/default/files/12_CLIENTES/Documentos/Instalaciones_conectadas_a_la_red_de_transporte_Requisitos_minimos_dise%C3%B1o_equipamiento_Ed4.pdf)
 - [RD 337/2014 ITC-RAT — BOE](https://www.boe.es/buscar/doc.php?id=BOE-A-2014-6084)
-- [Acuerdo eDistribución–REE para instalaciones en frontera (PDF)](https://www.edistribucion.com/content/dam/edistribucion/conexion-a-la-red/normativa/Acuerdo_EDRD_REE.pdf)
 - [CGMES conformance — DIgSILENT Ibérica](http://www.digsilentiberica.es/noticia/34/ENTSO-e-acredita-la-conformidad-de-DIgSILENT-PowerFactory-con-CGMES/)
 
 ---
 
-### Terminología eDistribución (vs denominaciones genéricas)
+### Terminología eDistribución (vs denominaciones del modelo)
 
-| Este modelo         | Denominación eDistribución / sector       |
-|---------------------|-------------------------------------------|
-| `linea` aérea MT    | LAMT (Línea Aérea de Media Tensión)       |
-| `linea` subterránea MT | LSMT (Línea Subterránea de Media Tensión) |
-| `envolvente` CT     | CT (Centro de Transformación)             |
-| `envolvente` CS     | CS (Centro de Seccionamiento)             |
-| `elemento_corte`    | Celda de línea / celda de seccionamiento  |
-| `transformador` en CT | Transformador MT/BT                     |
-
----
-
-## Referencia técnica internacional
-
-La estructura de tablas es coherente con el estándar **IEC CIM 61970/61968**
-(Common Information Model), que define cómo modelar redes eléctricas de forma
-interoperable. Se ha simplificado para el propósito de BDDAT, manteniendo los
-conceptos clave de topología Terminal–Nodo.
-
-- [Common Information Model (electricity) — Wikipedia](https://en.wikipedia.org/wiki/Common_Information_Model_(electricity))
-- [smart-data-models/dataModel.EnergyCIM — GitHub](https://github.com/smart-data-models/dataModel.EnergyCIM)
-- [ConnectivityNode — CIM Datamodel (Zepben)](https://zepben.github.io/evolve/docs/cim/ewb/IEC61970/Base/Core/ConnectivityNode/)
-- [ACLineSegment — CIM Schema (LANL)](https://lanl-ansi.github.io/MG-RAVENS/_static/schema/ACLineSegment.html)
-- [La información geográfica en redes de distribución eléctrica — Geoinnova](https://geoinnova.org/blog-territorio/la-informacion-geografica-en-las-redes-de-distribucion-de-energia-electrica/)
+| Este modelo                | Denominación eDistribución / sector       |
+|----------------------------|-------------------------------------------|
+| `linea` aérea MT           | LAMT (Línea Aérea de Media Tensión)       |
+| `linea` subterránea MT     | LSMT (Línea Subterránea de Media Tensión) |
+| `envolvente` CT            | CT (Centro de Transformación)             |
+| `envolvente` CS            | CS (Centro de Seccionamiento)             |
+| `elemento_corte`           | Celda de línea / de protección / seccionador |
+| `transformador` en CT      | Transformador MT/BT                       |
 
 ---
 
-## Principio de topología (de CIM)
+## Rol de IEC CIM 61970
 
-La conectividad eléctrica se modela con dos conceptos:
+CIM es **referencia conceptual y de vocabulario, no un corsé de esquema** (ver
+[ADR-000](../decisiones/ADR-000-principios-y-alcance.md)). Se toma el patrón
+**Terminal–ConnectivityNode** y la taxonomía; no se persigue CIM-compliance ni CGMES.
 
-- **`nodo`** (ConnectivityNode): punto eléctrico donde se unen conductores.
-  No es un activo físico, es el "cable invisible" que une terminales.
-- **`terminal`**: extremo de conexión de un activo. Cada activo tiene
-  tantos terminales como puntos de conexión (una línea tiene 2, un
-  transformador tiene 2, un embarrado tiene 1).
+---
 
-Un activo A y un activo B están conectados cuando comparten el mismo `nodo`
-a través de sus respectivos `terminal`.
+## Principio de topología
+
+La conectividad eléctrica se modela con dos conceptos (ver [ADR-001](../decisiones/ADR-001-topologia-terminal-nodo.md)):
+
+- **`nodo`** (ConnectivityNode): punto eléctrico donde se unen conductores. No es
+  un activo físico; es virtual.
+- **`terminal`**: extremo de conexión de un activo. Cada activo tiene tantos
+  terminales como puntos de conexión.
+
+Un activo A y un activo B están conectados cuando comparten el mismo `nodo` a
+través de sus respectivos `terminal`.
 
 ---
 
 ## Diagrama de tablas
 
 ```
-activo_red (base — SQL estándar, sin PostGIS)
+catálogos:  tension      nivel_aislamiento
+
+activo_red (base — identidad, SQL estándar, sin PostGIS)
+  ├── envolvente            ← contenedor (recinto); anidable
   ├── linea
   ├── elemento_corte
   ├── transformador
-  ├── elemento_medida
-  ├── elemento_proteccion
-  ├── envolvente          ←── otros activos pueden tener FK a envolvente
-  ├── soporte
-  └── embarrado
+  ├── embarrado
+  ├── elemento_medida       (solo AIS/GIS)
+  ├── pararrayos
+  ├── red_tierra
+  ├── apoyo
+  └── empalme
 
-activo_red → terminal → nodo         (topología eléctrica)
-activo_red → geometria_elemento      (geografía, PostGIS aislado)
+activo_red → terminal → nodo            (topología eléctrica)
+activo_red → activo_geometria → geometria   (geografía; PostGIS aislado y compartible)
+activo_red.envolvente_id → activo_red       (contención, self-FK)
 ```
+
+> "Protección" y "medida" **no son tipos de activo, son funciones**: se reparten
+> entre `elemento_corte` (función), `pararrayos`, `red_tierra`, `elemento_medida`
+> (ver [ADR-006](../decisiones/ADR-006-criterios-modelado.md)).
+
+---
+
+## Catálogos
+
+### `tension` — tensiones de servicio normalizadas
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | PK | |
+| valor_kv | NUMERIC | 3, 6, 10, 15, 20, 30, 45, 66, 132, 220, 400 |
+| rango | TEXT | MT / AT |
+
+### `nivel_aislamiento` — niveles normalizados (Um, RD 223/2008)
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | PK | |
+| valor_kv | NUMERIC | 3.6, 7.2, 12, 17.5, 24, 36, 52, 72.5, 123, 145, 245, 420 |
 
 ---
 
 ## Tablas
 
-### `activo_red` — tabla base para todos los activos de la red
+### `activo_red` — tabla base (identidad)
 
-Tabla SQL estándar. **No contiene ninguna columna PostGIS.**
-La geometría vive en la tabla lateral `geometria_elemento` (ver ADR-002).
+Tabla de **identidad**, deliberadamente delgada. **Sin columnas PostGIS.** No es
+instanciable por sí sola: todo activo tiene una especialización. Su valor es ser
+el ancla común de terminal, geometría, titularidad (BDDAT) y contención.
 
-Incluye activos conductores (líneas, seccionadores, transformadores…) y no
-conductores (apoyos, arquetas, canalizaciones). El campo `tipo_elemento`
-distingue unos de otros; las reglas de cuántos terminales corresponden a cada
-tipo se validan en el backend (ver ADR-001).
+| Columna       | Tipo               | Descripción                          |
+|---------------|--------------------|--------------------------------------|
+| id            | UUID PK            | Gancho de referencia para BDDAT      |
+| nombre        | TEXT               | Denominación del activo              |
+| envolvente_id | UUID FK(activo_red)| Contenedor (nullable). Self-FK       |
+| notas         | TEXT               | Texto libre para datos ocasionales   |
 
-| Columna              | Tipo               | Descripción                                           |
-|----------------------|--------------------|-------------------------------------------------------|
-| id                   | UUID PK            |                                                       |
-| nombre               | TEXT               | Denominación del activo                               |
-| tipo_elemento        | TEXT               | linea / corte / transformador / medida / proteccion / envolvente / soporte / embarrado |
-| tension_nominal_kv   | NUMERIC            | Tensión nominal de operación en kV                    |
-| estado               | TEXT               | en_servicio / fuera_servicio / en_construccion        |
-| gestor_red           | TEXT               | edistribucion / ree / privado / otro                  |
-| nivel_aislamiento_kv | NUMERIC            | Nivel de aislamiento (relevante en AT/REE). Nullable  |
-| envolvente_id        | UUID FK(activo_red)| Envolvente que lo contiene (nullable)                 |
-| notas                | TEXT               |                                                       |
+> No lleva `tipo` (derivable de la subtabla), ni tensión (cardinalidad variable:
+> el trafo tiene varias), ni estado (lo infiere BDDAT), ni titularidad (tabla
+> propia con histórico en BDDAT). Ver [ADR-006](../decisiones/ADR-006-criterios-modelado.md).
+
+### `envolvente` — contenedor (recinto), anidable
+
+| Columna   | Tipo       | Descripción                                                       |
+|-----------|------------|-------------------------------------------------------------------|
+| activo_id | UUID PK/FK | |
+| tipo      | TEXT       | centro_transformacion / subestacion / posicion / armario_seccionamiento / celda_prefabricada |
+
+> El nombre describe; el `tipo` categoriza (lo usa el descriptor para la palabra:
+> "Subestación", "Posición de línea"). La contención (`envolvente_id`) la puede
+> ejercer cualquier activo con ubicación, no solo las envolventes (un apoyo
+> contiene la aparamenta que monta).
+
+### `linea` — conductores aéreos y subterráneos
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| tipo | TEXT | aerea / subterranea |
+| tension_id | FK → tension | tensión de **servicio** |
+| nivel_aislamiento | FK → nivel_aislamiento | **capacidad** (Um); puede diferir del servicio |
+| conductor | TEXT | texto plano (tipología de cables a sesión propia) |
+| conductores_por_fase | INTEGER | haces dúplex/tríplex/cuádruplex |
+| longitud_m | NUMERIC | no derivable de la traza 2D (flecha/zanja) |
+| obra_civil_descripcion | TEXT | arquetas, canalizaciones, cámaras ("12 arquetas A1…") |
+
+> El aislamiento (desnudo/aislado) es propiedad del conductor → sesión de cables.
+> Doble circuito = **dos líneas** (independencia de ciclo de vida). 2 terminales.
+
+### `elemento_corte` — aparamenta de corte y maniobra
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| funcion | TEXT | linea / proteccion / acople / medida / remonte / seccionamiento / servicios_auxiliares |
+| aparato | TEXT | seccionador / interruptor / interruptor_automatico / reconectador / ruptofusible / cortacircuitos_fusible |
+| tecnologia | TEXT | AIS / GIS (medio aislante) |
+| nivel_aislamiento | FK → nivel_aislamiento | **obligatorio** (no tiene servicio del que derivarlo) |
+| accionamiento | TEXT | manual / motorizado / telecontrolado |
+| intensidad_nominal_a | NUMERIC | |
+| poder_corte_ka | NUMERIC | nullable (≈0 en seccionadores) |
+| calibre_fusible_a | NUMERIC | nullable (solo con fusible) |
+| tipo_fusible | TEXT | expulsion / limitador (nullable) |
+
+> `función` = rol de la celda; `aparato` = tecnología de corte (ejes ortogonales).
+> `interruptor_automatico` ⊃ relé (implícito). La tensión de **servicio** se hereda
+> del embarrado/nodo. 2 terminales.
+
+### `transformador`
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| tension_primario_id | FK → tension | lado de mayor tensión |
+| tension_secundario_id | FK → tension | lado de menor tensión |
+| potencia_kva | NUMERIC | valor ONAN (el menor); ampliación por migración aditiva |
+| grupo_vector | TEXT | Dyn11, YNyn0… |
+| refrigeracion | TEXT | seco / ONAN / ONAF / OFAF |
+
+> 3 devanados = **2 trafos + embarrado** (caso excepcional, AT). 2 terminales.
+> No lleva nivel de aislamiento (no está sobreaislado en general; se asume el de
+> cada tensión).
+
+### `embarrado`
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| tension_id | FK → tension | tensión de servicio (define la del nodo-barra) |
+| configuracion | TEXT | simple / partida / doble / triple |
+
+> Doble barra = **2 embarrados** + celda de acople. La microtopología de barras no
+> se modela (es operación, no autorización). 1 terminal, multiconexión. No lleva
+> aislamiento (solo ve los electrones que pasan; lo definen las celdas/aisladores).
+> Intensidad máxima → `notas` cuando excepcionalmente sea limitación de diseño.
+
+### `elemento_medida` — TI/TT individualizados (solo AIS/GIS)
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| tipo | TEXT | transformador_intensidad / transformador_tension / contador / analizador |
+| relacion_primario | NUMERIC | 600 (A) ó 220000 (V) según tipo |
+| relacion_secundario | NUMERIC | 5 (A) ó 110 (V) |
+| clase_precision | TEXT | 0.2 / 0.5 / 5P… |
+
+> En MT la medida va **integrada en la celda** (`elemento_corte`, función=medida);
+> esta tabla es para los TI/TT sueltos de subestaciones AIS/GIS. 0 terminales,
+> contenido en la posición.
+
+### `pararrayos` — protección contra sobretensiones
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| tension_nominal_kv | NUMERIC | Ur |
+| corriente_descarga_ka | NUMERIC | 5 / 10 / 20 |
+| clase | TEXT | distribucion / estacion |
+
+> Tecnología ZnO casi universal (no se modela). 0 terminales, contenido en envolvente.
+
+### `red_tierra` — protección contra defectos a tierra
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| rol | TEXT | proteccion / servicio |
+| resistencia_ohm | NUMERIC | para tensiones de contacto/paso en defecto |
+| distancia_separacion_m | NUMERIC | separación entre redes; solo en la fila de servicio (nullable) |
+| descripcion | TEXT | picas, distancias, sección, material |
+
+> Una o dos redes separativas según haya neutro a tierra (transformación). Cada
+> envolvente (subestación, CT de SSAA) lleva las suyas. 0 terminales.
+
+### `apoyo` — sustentación de líneas aéreas
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| funcion | TEXT | alineacion / angulo / anclaje / fin_de_linea / derivacion |
+| material | TEXT | texto libre (metálico celosía galvanizado…) |
+| altura_m | NUMERIC | nullable |
+| esfuerzo_dan | NUMERIC | esfuerzo nominal en punta; nullable |
+
+> 0 terminales (estructura mecánica). Puede **contener** la aparamenta que monta
+> (seccionadores, pararrayos, empalmes) vía `envolvente_id`.
+
+### `empalme` — unión de conductores
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID PK/FK | |
+| tipo | TEXT | recto / derivacion / terminal_botella / transicion_aero_subt |
+
+> 1 terminal, **multiconexión** ("embarrado exclusivo de líneas"): habilita que en
+> su nodo concurran N líneas. Geometría propia; sin tensión propia (la hereda).
+
+### `nodo` — punto de conectividad (virtual)
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | UUID PK | |
+| nombre | TEXT | referencia |
+| tension_id | FK → tension | tensión de servicio; la fija el primer activo con tensión propia que conecta (nullable hasta entonces) |
+
+> Virtual: no tiene geometría propia. Su comportamiento "bus" es emergente (lo
+> habilita un embarrado o empalme conectado), no un atributo.
+
+### `terminal` — conexión de un activo a un nodo
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | UUID PK | |
+| activo_id | UUID FK → activo_red | activo al que pertenece |
+| nodo_id | UUID FK → nodo | nodo al que conecta |
+| secuencia | INTEGER | distingue terminales del activo (p.ej. primario/secundario del trafo) |
 
 ---
 
-### `linea` — conductores aéreos, subterráneos, cables aislados
+## Geometría (PostGIS aislado y compartible)
 
-Extiende `activo_red` (FK `activo_id`). La traza geográfica va en `geometria_elemento`.
+Ver [ADR-002](../decisiones/ADR-002-herencia-tablas.md). La geometría es entidad
+propia reutilizable; el enlace a activos es indirecto y compartible (un apoyo y un
+empalme colocalizados comparten una misma `geometria_id`).
 
-| Columna           | Tipo       | Descripción                                      |
-|-------------------|------------|--------------------------------------------------|
-| activo_id         | UUID PK/FK |                                                  |
-| subtipo           | TEXT       | aerea / subterranea / cable_aislado / conductor_desnudo |
-| conductor_material| TEXT       | aluminio / cobre / ACSR / etc.                   |
-| seccion_mm2       | NUMERIC    | Sección del conductor en mm²                     |
-| longitud_m        | NUMERIC    | Longitud en metros (puede calcularse de la traza) |
-| num_circuitos     | INTEGER    | Número de circuitos (terna, doble circuito...)   |
+### `geometria` — única tabla con PostGIS
 
----
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | UUID PK | |
+| geom | GEOMETRY(Geometry, 4326) | **única columna PostGIS del modelo** |
+| tipo_geom | TEXT | punto / linea / poligono |
+| srid_origen | INTEGER | SRID del shape recibido (ej. 25830) |
+| fuente | TEXT | titular / digitalizado / gps / importado |
 
-### `elemento_corte` — seccionadores, interruptores, reconectadores
+### `activo_geometria` — enlace (SQL puro, portable)
 
-Extiende `activo_red` (FK `activo_id`).
+| Columna | Tipo | Descripción |
+|---|---|---|
+| activo_id | UUID FK → activo_red | |
+| geometria_id | UUID FK → geometria | compartible entre activos |
 
-| Columna           | Tipo       | Descripción                                      |
-|-------------------|------------|--------------------------------------------------|
-| activo_id         | UUID PK/FK |                                                  |
-| subtipo           | TEXT       | seccionador / interruptor / interruptor_automatico / reconectador / fusible_corte |
-| accionamiento     | TEXT       | manual / motorizado / telecontrolado             |
-| estado_normal     | TEXT       | normalmente_abierto / normalmente_cerrado        |
-| intensidad_nominal_a | NUMERIC | Intensidad nominal en A                         |
-| poder_corte_ka    | NUMERIC    | Poder de corte en kA (para interruptores)        |
-
----
-
-### `transformador` — transformadores de potencia y distribución
-
-Extiende `activo_red` (FK `activo_id`).
-
-| Columna              | Tipo       | Descripción                                   |
-|----------------------|------------|-----------------------------------------------|
-| activo_id            | UUID PK/FK |                                               |
-| potencia_kva         | NUMERIC    | Potencia nominal en kVA                       |
-| tension_primario_kv  | NUMERIC    | Tensión en el lado de alta                    |
-| tension_secundario_kv| NUMERIC    | Tensión en el lado de baja                    |
-| tension_terciario_kv | NUMERIC    | Nullable, para transformadores de 3 devanados |
-| grupo_vector         | TEXT       | Grupo de conexión (ej: Dyn11, YNd1)          |
-| tipo_refrigeracion   | TEXT       | ONAN / ONAF / OFAF / seco                    |
-| num_terminales       | INTEGER    | 2 o 3 (según devanados)                      |
-
----
-
-### `elemento_medida` — transformadores de medida (TI, TT) y contadores
-
-Extiende `activo_red` (FK `activo_id`).
-
-| Columna              | Tipo       | Descripción                                   |
-|----------------------|------------|-----------------------------------------------|
-| activo_id            | UUID PK/FK |                                               |
-| subtipo              | TEXT       | transformador_intensidad / transformador_tension / contador / analizador |
-| relacion_primario    | NUMERIC    | Ej: 200 (para TI 200/5)                       |
-| relacion_secundario  | NUMERIC    | Ej: 5                                         |
-| clase_precision      | TEXT       | 0.2 / 0.5 / 1 / 3 / 5P / 10P                |
-
----
-
-### `elemento_proteccion` — fusibles, pararrayos, redes de tierra
-
-Extiende `activo_red` (FK `activo_id`).
-
-| Columna              | Tipo       | Descripción                                   |
-|----------------------|------------|-----------------------------------------------|
-| activo_id            | UUID PK/FK |                                               |
-| subtipo              | TEXT       | fusible / pararrayos / descargador_sobretension / red_tierra / rele |
-| calibre_a            | NUMERIC    | Intensidad nominal / fusión (nullable)        |
-| tension_descarga_kv  | NUMERIC    | Para pararrayos/descargadores (nullable)      |
-| resistencia_tierra_ohm | NUMERIC  | Para redes de tierra (nullable)               |
-| num_sistemas_proteccion | INTEGER | Sistemas de protección redundantes (REE exige 2 en AT) |
-
----
-
-### `envolvente` — contenedores de elementos
-
-Extiende `activo_red` (FK `activo_id`).
-
-| Columna              | Tipo       | Descripción                                   |
-|----------------------|------------|-----------------------------------------------|
-| activo_id            | UUID PK/FK |                                               |
-| subtipo              | TEXT       | centro_transformacion / subestacion / armario_seccionamiento / celda_prefabricada |
-| propietario          | TEXT       | Propietario/gestor de la instalación          |
-| acceso               | TEXT       | publico / privado / restringido               |
-
----
-
-### `soporte` — apoyos, arquetas, canalizaciones, empalmes
-
-Extiende `activo_red` (FK `activo_id`).
-
-| Columna              | Tipo       | Descripción                                   |
-|----------------------|------------|-----------------------------------------------|
-| activo_id            | UUID PK/FK |                                               |
-| subtipo              | TEXT       | apoyo / empalme / arqueta / canalizacion / herraje |
-| material             | TEXT       | hormigon / metalico / madera / fibra          |
-| altura_m             | NUMERIC    | Altura del apoyo en metros (nullable)         |
-
----
-
-### `embarrado` — conjunto de barras de igual tensión
-
-Extiende `activo_red` (FK `activo_id`).
-
-| Columna              | Tipo       | Descripción                                   |
-|----------------------|------------|-----------------------------------------------|
-| activo_id            | UUID PK/FK |                                               |
-| intensidad_maxima_a  | NUMERIC    | Corriente máxima admisible                    |
-| num_barras           | INTEGER    | Número de barras del sistema (simple/doble)   |
-
----
-
-### `nodo` — nodo de conectividad eléctrica (ConnectivityNode en CIM)
-
-No es un elemento físico: es el punto lógico donde varios terminales confluyen.
-
-| Columna              | Tipo             | Descripción                               |
-|----------------------|------------------|-------------------------------------------|
-| id                   | UUID PK          |                                           |
-| nombre               | TEXT             | Referencia (ej: "Nodo_AT_CT_Ejemplo")     |
-| tension_nominal_kv   | NUMERIC          |                                           |
-| geom                 | GEOMETRY(Point)  | Coordenada aproximada (PostGIS, nullable) |
-
----
-
-### `terminal` — punto de conexión de un elemento a la red
-
-| Columna              | Tipo       | Descripción                                   |
-|----------------------|------------|-----------------------------------------------|
-| id                   | UUID PK    |                                               |
-| elemento_id          | UUID FK    | Elemento al que pertenece este terminal       |
-| nodo_id              | UUID FK    | Nodo al que está conectado                    |
-| secuencia            | INTEGER    | 1=lado_alta, 2=lado_baja, 3=terciario (para transformadores) |
+**Coordenadas:** almacenamiento en **WGS84 (4326)**; exportación a la Junta de
+Andalucía en **ETRS89 UTM30N (25830)** mediante `ST_Transform`. Entrada de shapes
+del titular vía `ogr2ogr`/GeoPandas.
 
 ---
 
 ## Reglas de conectividad
 
-| Tipo de elemento   | Num. terminales | Cómo conecta                                              |
-|--------------------|-----------------|-----------------------------------------------------------|
-| Línea              | 2               | Terminal 1 y 2 a nodos distintos (inicio y fin de tramo)  |
-| Elemento de corte  | 2               | Terminal 1 y 2 al embarrado o a nodos de la red           |
-| Transformador      | 2 (o 3)         | Terminal 1 = alta tensión, terminal 2 = baja tensión      |
-| Embarrado          | N               | Cada terminal conecta un elemento de corte al embarrado   |
-| Soporte / Empalme  | 1–2             | Punto de paso de la línea; puede ser nodo intermedio      |
-| Medida / Protección| —               | Sin terminales propios: están contenidos en `envolvente`  |
+Resumen; el detalle y las invariantes R1–R8 están en
+[ADR-001](../decisiones/ADR-001-topologia-terminal-nodo.md).
 
----
+| Activo | Terminales | Multiconexión |
+|---|---|---|
+| linea, elemento_corte, transformador | 2 | no |
+| embarrado, empalme | 1 | **sí (N)** |
+| apoyo, elemento_medida, pararrayos, red_tierra, envolvente | 0 | — |
 
-### `geometria_elemento` — geometría PostGIS (tabla lateral aislada)
-
-Única tabla del modelo con dependencia de PostGIS. Ver ADR-002 para justificación
-del aislamiento y estrategia de migración.
-
-Un activo puede existir sin geometría (durante tramitación) y recibirla después.
-
-| Columna      | Tipo                  | Descripción                                          |
-|--------------|-----------------------|------------------------------------------------------|
-| activo_id    | UUID PK FK(activo_red)| Activo al que pertenece esta geometría               |
-| geom         | GEOMETRY(Geometry, 4326) | Punto, línea o polígono en WGS84                  |
-| tipo_geom    | TEXT                  | punto / linea / poligono                             |
-| srid_origen  | INTEGER               | SRID del shape recibido del titular (ej: 25830)      |
-| fuente       | TEXT                  | titular / digitalizado / gps / importado             |
-
-**Uso de coordenadas:**
-- Almacenamiento: **WGS84 (SRID 4326)**
-- Exportación a administraciones (Junta de Andalucía): **ETRS89 UTM30N (SRID 25830)**
-  mediante `ST_Transform(geom, 25830)` al exportar.
-
-**Flujo de entrada de shapes del titular:**
-```
-Shape titular (.shp / .gpkg)  →  ogr2ogr / GeoPandas  →  geometria_elemento
-```
-
-**Flujo de exportación a administración:**
-```
-geometria_elemento  →  ST_Transform(25830)  →  .shp / .gpkg para Junta de Andalucía
-```
+- Terminales = 0 ⟺ no conductor, fuera del grafo, vinculado por **contención**.
+- Misma tensión de servicio en todos los terminales de un nodo (R1).
+- `nivel_aislamiento` del activo ≥ tensión de servicio del nodo (R8).
+- Multiconexión (>2 terminales en un nodo) la habilita un embarrado o un empalme (R5).
 
 ---
 
@@ -364,14 +393,17 @@ geometria_elemento  →  ST_Transform(25830)  →  .shp / .gpkg para Junta de An
 
 - La topología eléctrica (qué afecta a qué) se recorre por `terminal` + `nodo`, no por GIS.
 - Los cálculos espaciales (solapamientos, cruces, extensión por municipio) operan
-  sobre `geometria_elemento` sin tocar el núcleo del modelo.
-- `activo_red.envolvente_id` permite construir la jerarquía CT → celda → transformador.
+  sobre `geometria` sin tocar el núcleo del modelo.
+- `activo_red.envolvente_id` construye la jerarquía CT/subestación → posición → aparamenta.
 
 ---
 
 ## Pendiente de definir
 
-- Características técnicas detalladas por tipo (catálogos de cables, aisladores, etc.)
-- Histórico de estados y mantenimientos (tabla `evento_elemento`)
-- Documentación asociada (tabla `documento_elemento`)
-- Integración con el modelo de datos de BDDAT (referencias cruzadas)
+- **Generación** (`elemento_generacion`, `subcampo_fv`…): pendiente de revisión
+  bajo los criterios consolidados (ver `modelo-datos-generacion.md`).
+- **Agrupaciones lógicas** sin recinto físico (p. ej. "línea MT-15 y todos sus
+  apoyos a lo largo de 30 km"): sesión transversal pendiente.
+- Tipología de **conductores** y de **aisladores**: sesión propia.
+- Integración con BDDAT: titularidad (con histórico), expediente, estado
+  administrativo (referencian al `activo_red.id`; ver ADR-000).

@@ -1,5 +1,20 @@
 # Modelo de datos — Elementos de generación y almacenamiento
 
+> ⚠️ **PENDIENTE DE REVISIÓN.** Este documento refleja una primera propuesta
+> anterior al repaso tabla por tabla del modelo de red (junio 2026). Debe
+> revisarse bajo los criterios ya consolidados:
+> - Renombrados: `elemento` → `activo_red`, `elemento_id` → `activo_id`, `subtipo` → `tipo`.
+> - Reencajar la pertenencia con el **mecanismo de envolvente** (la planta como
+>   envolvente; inversores/baterías como activos contenidos) en vez de la FK
+>   paralela `elemento_generacion_id` (ver ADR-006 C8 y la discusión de envolvente).
+> - Decidir si inversores y módulos de batería son **activos `activo_red`** con 0
+>   terminales (inventariables) en lugar de tablas aparte.
+> - Geometría vía `geometria` + `activo_geometria` (no columna `geom` propia).
+> - Aplicar criterios C1–C8 de [ADR-006](../decisiones/ADR-006-criterios-modelado.md).
+>
+> La parte **normativa** (RD 997/2025 potencia instalada, RD 647/2020 UGE/MGE,
+> frontera en el inversor) y el **esquema de tensiones** siguen siendo válidos.
+
 ## Esquema de tensiones — de paneles al punto de entrega en red
 
 ![Esquema tensiones planta FV](../esquemas/tension-planta-fv.svg)

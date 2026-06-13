@@ -1,7 +1,8 @@
 # ADR-003 — Límite del modelo en instalaciones de generación: el inversor como frontera
 
-**Estado:** Propuesto  
+**Estado:** Aceptado
 **Fecha:** 2026-06-12
+**Revisado:** 2026-06-13
 
 ## Contexto
 
@@ -31,7 +32,10 @@ de Electricidad)** del RD 647/2020, que excluye expresamente el lado DC de FV.
 ## Consecuencias
 
 - Las `unidad_generacion` (inversores, aerogeneradores) no tienen terminales MT
-  propios: están contenidas en la `envolvente` de la planta.
+  propios. No se contienen mediante el mecanismo de `envolvente` de `activo_red`
+  (no extienden esa tabla), sino por su FK a `elemento_generacion`.
 - El `elemento_generacion` sí conecta a la red MT mediante terminales.
-- Los datos del lado DC (paneles, inclinación, potencia pico) son atributos
-  de `elemento_generacion`, no entidades separadas con topología.
+- Los datos del lado DC (módulos, orientación, potencia pico) se modelan en la
+  entidad **`subcampo_fv`** (ADR-004), que es una entidad separada pero **sin
+  topología eléctrica**: no tiene terminales ni nodos, no participa en el grafo
+  Terminal–Nodo.
