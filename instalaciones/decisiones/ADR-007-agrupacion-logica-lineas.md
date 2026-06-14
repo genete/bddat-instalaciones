@@ -1,7 +1,11 @@
-# ADR-007 — Agrupación lógica de líneas (conjunto de tramos)
+# ADR-007 — Agrupación lógica de líneas mediante envolvente lógica
 
 **Estado:** Aceptado
 **Fecha:** 2026-06-14
+
+> Sustituye a una primera versión que introducía una tabla aparte `agrupacion_logica` con
+> FK propia `agrupacion_id`. Tras revisión, se descarta esa tabla: la agrupación lógica de
+> líneas se modela **reutilizando `envolvente`** (ver "Alternativas descartadas").
 
 ## Contexto
 
@@ -9,77 +13,84 @@ Lo que modelamos como `linea` es el **tramo** de las compañías: un conductor q
 elementos de otro tipo (nodos). Pero distribuidoras y REE nombran **líneas con identidad
 propia** —"LA JANDA", "SET A – SET B"— que son **conjuntos de tramos** bajo una misma
 denominación. Esa denominación es como se lee el esquema unifilar y como se redacta la
-resolución; enumerar "SL435, SL436…" en vez de "Línea LA JANDA" es ininteligible para quien
-la recibe (P2).
+resolución (P2); enumerar "SL435, SL436…" en vez de "Línea LA JANDA" es ininteligible.
 
-Hace falta un **agrupador lógico de tramos**, distinto de la contención física.
+Hace falta un agrupador de tramos que dé esa identidad. La cuestión es **cómo**: ¿tabla
+nueva o el mecanismo de contención que ya existe?
 
 ## Decisión
 
-Se introduce **`agrupacion_logica`**, un contenedor **sin datos propios salvo el nombre**:
+La agrupación lógica de líneas se modela como **envolvente lógica**: una `envolvente`
+**sin reflejo físico**, distinguida por el `tipo` (`linea`, `circuito`). Reutiliza el
+mecanismo de contención existente —`activo_red.envolvente_id` (self-FK, anidable)— **sin
+añadir tabla ni FK nuevas**.
 
-| Columna | Tipo | Descripción |
+- Una **línea con nombre** ("LA JANDA", "SET A – SET B") es una envolvente `tipo = linea`
+  que contiene sus tramos (`linea`).
+- Un **circuito** con varios tramos (mixto aéreo/subterráneo, o partido por empalmes) es una
+  envolvente `tipo = circuito` anidada bajo la línea.
+- La pertenencia de un tramo a la línea es `tramo.envolvente_id → envolvente-línea`; la
+  pertenencia a niveles superiores es **transitiva** por la jerarquía.
+
+### Regla del contenedor mínimo
+
+**No se crean contenedores de un solo hijo.** Un nivel de envolvente (línea, circuito) existe
+**solo si agrupa más de un activo**. El anidamiento **surge por necesidad**, no por plantilla.
+
+**Doble circuito de tramos simples** (cada circuito = 1 tramo) — *sin* niveles intermedios:
+
+| id | nombre | subtabla | envolvente_id |
+|---|---|---|---|
+| `e0` | "SET A–SET B" | envolvente (`linea`) | NULL |
+| `L1` | tramo terna 1 | linea | `e0` |
+| `L2` | tramo terna 2 | linea | `e0` |
+| `A1` | apoyo común | apoyo | `e0` |
+
+**Solo si un circuito tiene varios tramos** aparece su envolvente (aquí circuito 2 = aéreo +
+subterráneo):
+
+| id | nombre | subtabla | envolvente_id |
+|---|---|---|---|
+| `e0` | "SET A–SET B" | envolvente (`linea`) | NULL |
+| `L1` | tramo circ. 1 | linea | `e0` | *(directo, sin contenedor)* |
+| `eC2` | "Circuito 2" | envolvente (`circuito`) | `e0` | *(necesario: agrupa 2 tramos)* |
+| `L2a` | tramo aéreo circ. 2 | linea | `eC2` |
+| `L2b` | tramo subt. circ. 2 | linea | `eC2` |
+| `EMP` | empalme aéreo/subt | empalme | `eC2` |
+| `A1` | apoyo común | apoyo | `e0` |
+
+### Geometría (potestativa)
+
+Una **envolvente lógica no tiene geometría propia**: su representación es la **agregación**
+(`ST_Union` / envolvente) de las geometrías de sus activos contenidos. La geometría se hereda
+hacia arriba por la jerarquía de contención; no se almacena en el contenedor lógico (P3). Una
+envolvente física (recinto) sí puede llevar shape propio, opcional.
+
+## Frontera normativa (por `tipo`, no estructural)
+
+`envolvente` pasa a ser un contenedor **físico o lógico**, distinguido por el `tipo`:
+
+| `tipo` | Qué agrupa | Norma |
 |---|---|---|
-| id | UUID PK | |
-| nombre | TEXT | "LA JANDA", "SET A – SET B" |
-| padre_id | UUID FK → agrupacion_logica | anidamiento (nullable) |
-
-La pertenencia es **1:N**: una FK nullable **`agrupacion_id → agrupacion_logica.id`** en
-`activo_red`. Reglas:
-
-- Cada activo cuelga del **nivel más específico al que pertenece en exclusiva**; la
-  pertenencia a los niveles superiores es **transitiva** por `padre_id` (no se declara).
-- **No es `activo_red`**: la línea-con-nombre no es tangible (no se monta, no se pone en
-  servicio, no tiene geometría propia). Su traza es **derivada** (`ST_Union` de los tramos).
-- **Anidable** (`padre_id`): cubre desde el tramo único hasta el haz de circuitos.
-
-### Cómo cubre los casos
-
-- **Circuito mixto (tramos encadenados):** una agrupación plana con sus tramos en serie.
-- **Doble/múltiple circuito en paralelo (mismo origen y final):** la línea-nombre como
-  **padre** que anida una agrupación por **circuito**; el "mismo origen/final" emerge de la
-  topología (los tramos extremos comparten los nodos de las SET), no se codifica.
-
-**Ejemplo — doble circuito "SET A–SET B"** (G0) con Circuito 1 (G1) y 2 (G2), tramos L1/L2
-y apoyos compartidos A1–A3:
-
-| activo | agrupacion_id |
-|---|---|
-| L1 (terna 1) | G1 |
-| L2 (terna 2) | G2 |
-| A1, A2, A3 (apoyos comunes) | G0 |
-
-El apoyo común cuelga de **G0** (donde es común); el conductor, de su circuito. "L1 es de
-SET A–SET B" se infiere por `G1 → G0`. Sin duplicar filas.
-
-## Frontera normativa: agrupación (líneas) vs envolvente (instalaciones)
-
-Son **dos mecanismos ortogonales** con respaldo normativo distinto:
-
-| Mecanismo | Qué agrupa | Norma |
-|---|---|---|
-| **`agrupacion_logica`** | **líneas**: conjuntos de tramos | **RD 223/2008** (Reglamento de líneas de AT) |
-| **`envolvente`** (contención física) | **instalaciones**: recintos (CT, subestación, posición) | **RD 337/2014** (Reglamento de instalaciones de AT) |
-
-Un mismo activo puede tener **ambas**: un seccionador puede estar *contenido* en un CT
-(`envolvente_id`, RD 337/2014) y *pertenecer* a la línea LA JANDA (`agrupacion_id`,
-RD 223/2008). No se mezclan.
+| físicos (CT, subestación, posición…) | **instalaciones**: recintos | **RD 337/2014** |
+| lógicos (`linea`, `circuito`) | **líneas**: conjuntos de tramos | **RD 223/2008** |
 
 ## Alternativas descartadas
 
 | Alternativa | Problema |
 |---|---|
-| Tabla intermedia **N:M** (`agrupacion_activo`) | **Overkill** para el caso normal: duplica los apoyos comunes que el árbol ya hereda. Solo se justifica con **compartición parcial** (un activo en unos circuitos sí y en otros no), infrecuente. **Migrable a N:M sin pérdida** si aparece. |
-| Reutilizar `envolvente_id` | Mezcla contención **física** (recinto) con agrupación **lógica** (sin recinto); ensucia ambas semánticas. |
-| Hacer la agrupación un `activo_red` | No es tangible: sin terminales, sin geometría propia, sin puesta en servicio. |
+| **Tabla aparte `agrupacion_logica` + FK `agrupacion_id`** (primera propuesta) | No aporta capacidad sobre la envolvente. El "doble eje físico/lógico" que la justificaba **no se da**: los activos que se agrupan en una línea (tramos, y por contención sus apoyos) **no están en recintos** → su `envolvente_id` está libre para el eje lógico; y los activos de recinto (posiciones, celdas) se relacionan con su línea por **topología** (`terminal`–`nodo`), no por contención. Un artefacto y una FK de más. |
+| Pertenencia **N:M** | Overkill: un activo cuelga del nivel más específico y el resto se hereda. Solo haría falta con compartición parcial (un activo en unos circuitos sí y en otros no), infrecuente. |
+| Agrupación como entidad sin terminales pero con geometría propia | La línea-nombre no tiene shape propio; su traza es agregación de los tramos. |
 
 ## Consecuencias
 
-- `activo_red` gana una segunda referencia de agrupación, **ortogonal** a `envolvente_id`:
-  `agrupacion_id` (lógica, líneas, RD 223/2008) vs `envolvente_id` (física, instalaciones,
-  RD 337/2014).
-- El descriptor humano (P2) recorre la jerarquía de `agrupacion_logica` para nombrar "Línea
-  LA JANDA, doble circuito" y enumerar sus tramos.
-- La traza de una línea-nombre es una consulta (`ST_Union`), no un dato.
-- Si aparece compartición parcial de activos entre circuitos, la FK se migra a tabla enlace
-  N:M sin cambios conceptuales.
+- **No hay tabla `agrupacion_logica` ni columna `agrupacion_id`.** Un mecanismo único de
+  contención (`envolvente_id`) cubre lo físico y lo lógico.
+- `envolvente` se reinterpreta como **contenedor físico o lógico** (atributo `tipo`).
+- "¿Qué línea pasa por esta posición de SET?" se responde por **topología**
+  (`posición → terminal → nodo ← terminal ← tramo → envolvente-línea`), no por agrupación.
+- La geometría de una línea/circuito es una **consulta** (`ST_Union`), no un dato.
+- **Reaparición de una 2.ª referencia** solo si algún día un activo debiera pertenecer a dos
+  jerarquías **no anidables por contención** a la vez. Hoy no ocurre; si surgiera, se añade
+  entonces.

@@ -31,7 +31,7 @@ A resolver:
 - **Herencia de atributos:** los dos tramos heredan conductor, tensión, aislamiento… del
   original; ¿se duplican o se revisan?
 - **Agrupación lógica (ADR-007):** los tramos resultantes deberían seguir colgando de la
-  misma `agrupacion_logica` que el original.
+  misma **envolvente lógica** (línea) que el original.
 
 ## Problema 2 — La línea existente no modelada (de un tercero)
 
@@ -42,8 +42,8 @@ para colgar la conexión, **sin** haber inventariado sus 30 km. Opciones a estud
   marcada como "existente / no inventariada".
 - **Nodo frontera:** un `nodo` "frontera con red existente" al que se conecta lo nuevo, sin
   modelar la línea ajena.
-- **Agrupación lógica vacía:** una `agrupacion_logica` "LA JANDA (existente)" como ancla de
-  identidad, con o sin tramos.
+- **Envolvente lógica vacía:** una envolvente `tipo=linea` "LA JANDA (existente)" como ancla
+  de identidad, con o sin tramos.
 
 Criterio: permitir describir la modificación en la resolución sin obligar a modelar red
 ajena y **sin crear falsas fuentes de verdad** (coherente con ADR-000).

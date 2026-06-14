@@ -140,9 +140,7 @@ activo_red (base — identidad, SQL estándar, sin PostGIS)
 
 activo_red → terminal → nodo            (topología eléctrica)
 activo_red → activo_geometria → geometria   (geografía; PostGIS aislado y compartible)
-activo_red.envolvente_id → activo_red       (contención física; RD 337/2014)
-activo_red.agrupacion_id → agrupacion_logica   (agrupación lógica de líneas; RD 223/2008)
-agrupacion_logica.padre_id → agrupacion_logica (anidamiento)
+activo_red.envolvente_id → activo_red       (contención, self-FK; física —RD 337/2014— o lógica —RD 223/2008—)
 ```
 
 > "Protección" y "medida" **no son tipos de activo, son funciones**: se reparten
@@ -186,8 +184,7 @@ el ancla común de terminal, geometría, titularidad (BDDAT) y contención.
 |---------------|--------------------|--------------------------------------|
 | id            | UUID PK            | Gancho de referencia para BDDAT      |
 | nombre        | TEXT               | Denominación del activo              |
-| envolvente_id | UUID FK(activo_red)| Contenedor **físico** (nullable). Self-FK |
-| agrupacion_id | UUID FK(agrupacion_logica) | Agrupación **lógica** de línea (nullable). Ver `agrupacion_logica` |
+| envolvente_id | UUID FK(activo_red)| Contenedor (físico o lógico, nullable). Self-FK |
 | notas         | TEXT               | Texto libre para datos ocasionales   |
 
 > No lleva `tipo` (derivable de la subtabla), ni tensión (cardinalidad variable:
@@ -199,33 +196,37 @@ el ancla común de terminal, geometría, titularidad (BDDAT) y contención.
 | Columna   | Tipo       | Descripción                                                       |
 |-----------|------------|-------------------------------------------------------------------|
 | activo_id | UUID PK/FK | |
-| tipo      | TEXT       | centro_transformacion / subestacion / posicion / armario_seccionamiento / celda_prefabricada / planta_fotovoltaica / parque_eolico / planta_almacenamiento / planta_hibrida |
+| tipo      | TEXT       | **físicas:** centro_transformacion / subestacion / posicion / armario_seccionamiento / celda_prefabricada / planta_fotovoltaica / parque_eolico / planta_almacenamiento / planta_hibrida · **lógicas:** linea / circuito |
 
 > El nombre describe; el `tipo` categoriza (lo usa el descriptor para la palabra:
 > "Subestación", "Posición de línea"). La contención (`envolvente_id`) la puede
 > ejercer cualquier activo con ubicación, no solo las envolventes (un apoyo
 > contiene la aparamenta que monta).
 
-### `agrupacion_logica` — agrupación lógica de líneas (conjunto de tramos)
+#### Envolventes lógicas (agrupación de líneas)
 
-Contenedor **lógico, sin recinto físico**, para nombrar las "líneas" comerciales
-(LA JANDA, SET A–SET B) que son conjuntos de **tramos** (nuestras `linea`). Ver
-[ADR-007](../decisiones/ADR-007-agrupacion-logica-lineas.md).
+Una `envolvente` puede ser **física** (recinto: CT, subestación, posición… — RD 337/2014) o
+**lógica** (agrupación sin recinto: tipos `linea` y `circuito` — RD 223/2008), distinguidas
+por el `tipo`. Ambas usan el **mismo mecanismo**: `envolvente_id` (self-FK, anidable). Una
+línea con nombre ("LA JANDA", "SET A–SET B") es una envolvente lógica que contiene sus tramos
+(`linea`); un circuito multi-tramo (mixto o partido por empalmes) es una envolvente lógica
+anidada bajo la línea. Ver [ADR-007](../decisiones/ADR-007-agrupacion-logica-lineas.md).
 
-| Columna | Tipo | Descripción |
-|---|---|---|
-| id | UUID PK | |
-| nombre | TEXT | "LA JANDA", "SET A – SET B" |
-| padre_id | UUID FK → agrupacion_logica | anidamiento (nullable): línea-nombre → circuito → tramo |
+> **Regla del contenedor mínimo:** no se crean contenedores de un solo hijo. Un nivel de
+> envolvente (línea, circuito) existe **solo si agrupa más de un activo**. Un doble circuito
+> de tramos simples cuelga los dos tramos directos de la línea; el nivel `circuito` aparece
+> solo cuando un circuito tiene varios tramos. El anidamiento **surge por necesidad**, no por
+> plantilla; una línea de un solo tramo no necesita ni envolvente.
 
-> **Pertenencia 1:N** vía `activo_red.agrupacion_id`. Cada activo cuelga del nivel más
-> específico al que pertenece en exclusiva; la pertenencia a los niveles superiores es
-> **transitiva** por `padre_id`. No es `activo_red` (no es tangible): su traza es derivada
-> (`ST_Union` de sus tramos), no un dato.
->
-> **Frontera normativa:** `agrupacion_logica` agrupa **líneas** (**RD 223/2008**, Reglamento
-> de líneas de AT); `envolvente` agrupa **instalaciones** (**RD 337/2014**, Reglamento de
-> instalaciones de AT). Son ortogonales: un activo puede tener ambas.
+> **Geometría (potestativa, P3).** Un contenedor tiene geometría propia solo si representa
+> algo físico con shape (una envolvente física —el recinto— puede llevar su polígono; un
+> apoyo, su punto). Una **envolvente lógica no tiene geometría propia**: su representación es
+> la **agregación** (`ST_Union` / envolvente) de las geometrías de sus activos contenidos. La
+> geometría se hereda hacia arriba por la jerarquía de contención; no se almacena en el
+> contenedor lógico.
+
+> **Frontera normativa por `tipo`:** tipos físicos (CT, subestación, posición…) → RD 337/2014
+> (instalaciones); tipos lógicos (`linea`, `circuito`) → RD 223/2008 (líneas).
 
 ### `linea` — conductores aéreos y subterráneos
 
