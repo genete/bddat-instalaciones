@@ -15,6 +15,11 @@ Definir la **estructura de datos para la descripción técnica** de los activos
 de las instalaciones eléctricas de alta tensión (MT y AT, > 1 kV), incluyendo
 distribución, transporte y generación.
 
+> **Excepción de alcance (generación):** la frontera general es «> 1 kV», pero el modelo
+> admite la **BT AC de evacuación de generación** (entre el inversor y el centro elevador),
+> porque entra en el RD 337/2014 y es necesaria para describir la puesta en servicio por
+> clusters. El lado **DC** sigue fuera. Ver [ADR-003](ADR-003-limite-modelo-generacion.md).
+
 El sistema debe servir a cuatro necesidades:
 
 1. **Inventario de activos** montados manualmente, tanto los de un expediente

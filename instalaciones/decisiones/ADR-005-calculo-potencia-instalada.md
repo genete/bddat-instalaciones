@@ -7,9 +7,9 @@
 
 `potencia_instalada_kw` aparece en dos niveles jerárquicos con necesidades distintas:
 
-1. **Subcampo FV**: fórmula cerrada sobre columnas de la misma fila
+1. **Unidad FV (`unidad_fv`)**: fórmula cerrada sobre columnas de la misma fila
    (módulos, inversor, factor bifacial según RD 997/2025 Art. 5.2)
-2. **Planta completa**: agregación de todos los subcampos
+2. **Planta completa**: agregación de todas las unidades de generación
 3. **Operacional / por estados**: la potencia "en servicio" real depende del
    estado de cada elemento (proyectado / autorizado / en_servicio / fuera_servicio)
    y varía dinámicamente
@@ -18,7 +18,7 @@
 
 | Nivel              | Estrategia                  | Justificación                                           |
 |--------------------|-----------------------------|---------------------------------------------------------|
-| Subcampo FV        | Columna `GENERATED STORED`  | Fórmula intra-fila, siempre consistente, cero mantenimiento |
+| Unidad FV (`unidad_fv`) | Columna `GENERATED STORED` | Fórmula intra-fila, siempre consistente, cero mantenimiento |
 | Planta (legal)     | Vista `v_potencia_planta`   | Agregación entre tablas; vista siempre fresca, sin riesgo de desincronización |
 | Planta (operacional)| Cálculo en backend (Python) | Depende de filtros de estado dinámicos; no es un dato fijo de la BD |
 

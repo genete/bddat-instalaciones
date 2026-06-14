@@ -1,7 +1,13 @@
 # ADR-004 — Nomenclatura: `subcampo_fv` para la agrupación operativa de paneles
 
-**Estado:** Aceptado
+**Estado:** Aceptado · *revisado 2026-06-14*
 **Fecha:** 2026-06-13
+
+> **Nota (2026-06-14):** la **entidad** `subcampo_fv` se **absorbe en `unidad_fv`** (1
+> inversor = 1 isla; varias orientaciones/MPPT → texto agregado). El término «subcampo» se
+> conserva como concepto descriptivo, no como tabla. La elección de nomenclatura de este
+> ADR sigue siendo válida para ese concepto. Ver
+> [modelo-datos-generacion.md](../arquitectura/modelo-datos-generacion.md).
 
 ## Contexto
 

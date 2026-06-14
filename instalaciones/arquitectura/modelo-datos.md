@@ -133,11 +133,16 @@ activo_red (base — identidad, SQL estándar, sin PostGIS)
   ├── pararrayos
   ├── red_tierra
   ├── apoyo
-  └── empalme
+  ├── empalme
+  ├── unidad_fv             ← generación FV (1 terminal; ver modelo-datos-generacion.md)
+  ├── unidad_eolica         ← generación eólica (1 terminal)
+  └── unidad_almacenamiento ← almacenamiento (1 terminal)
 
 activo_red → terminal → nodo            (topología eléctrica)
 activo_red → activo_geometria → geometria   (geografía; PostGIS aislado y compartible)
-activo_red.envolvente_id → activo_red       (contención, self-FK)
+activo_red.envolvente_id → activo_red       (contención física; RD 337/2014)
+activo_red.agrupacion_id → agrupacion_logica   (agrupación lógica de líneas; RD 223/2008)
+agrupacion_logica.padre_id → agrupacion_logica (anidamiento)
 ```
 
 > "Protección" y "medida" **no son tipos de activo, son funciones**: se reparten
@@ -153,8 +158,12 @@ activo_red.envolvente_id → activo_red       (contención, self-FK)
 | Columna | Tipo | Descripción |
 |---|---|---|
 | id | PK | |
-| valor_kv | NUMERIC | 3, 6, 10, 15, 20, 30, 45, 66, 132, 220, 400 |
-| rango | TEXT | MT / AT |
+| valor_kv | NUMERIC | **BT** (generación): 0.4, 0.69, 0.8 · **MT:** 3, 6, 10, 15, 20, 30, 45 · **AT:** 66, 132, 220, 400 |
+| rango | TEXT | BT / MT / AT |
+
+> Los valores **BT** solo aplican a la AC de evacuación de generación (inversor→centro
+> elevador); ver [ADR-000](../decisiones/ADR-000-principios-y-alcance.md) y
+> [modelo-datos-generacion.md](modelo-datos-generacion.md).
 
 ### `nivel_aislamiento` — niveles normalizados (Um, RD 223/2008)
 
@@ -177,7 +186,8 @@ el ancla común de terminal, geometría, titularidad (BDDAT) y contención.
 |---------------|--------------------|--------------------------------------|
 | id            | UUID PK            | Gancho de referencia para BDDAT      |
 | nombre        | TEXT               | Denominación del activo              |
-| envolvente_id | UUID FK(activo_red)| Contenedor (nullable). Self-FK       |
+| envolvente_id | UUID FK(activo_red)| Contenedor **físico** (nullable). Self-FK |
+| agrupacion_id | UUID FK(agrupacion_logica) | Agrupación **lógica** de línea (nullable). Ver `agrupacion_logica` |
 | notas         | TEXT               | Texto libre para datos ocasionales   |
 
 > No lleva `tipo` (derivable de la subtabla), ni tensión (cardinalidad variable:
@@ -189,12 +199,33 @@ el ancla común de terminal, geometría, titularidad (BDDAT) y contención.
 | Columna   | Tipo       | Descripción                                                       |
 |-----------|------------|-------------------------------------------------------------------|
 | activo_id | UUID PK/FK | |
-| tipo      | TEXT       | centro_transformacion / subestacion / posicion / armario_seccionamiento / celda_prefabricada |
+| tipo      | TEXT       | centro_transformacion / subestacion / posicion / armario_seccionamiento / celda_prefabricada / planta_fotovoltaica / parque_eolico / planta_almacenamiento / planta_hibrida |
 
 > El nombre describe; el `tipo` categoriza (lo usa el descriptor para la palabra:
 > "Subestación", "Posición de línea"). La contención (`envolvente_id`) la puede
 > ejercer cualquier activo con ubicación, no solo las envolventes (un apoyo
 > contiene la aparamenta que monta).
+
+### `agrupacion_logica` — agrupación lógica de líneas (conjunto de tramos)
+
+Contenedor **lógico, sin recinto físico**, para nombrar las "líneas" comerciales
+(LA JANDA, SET A–SET B) que son conjuntos de **tramos** (nuestras `linea`). Ver
+[ADR-007](../decisiones/ADR-007-agrupacion-logica-lineas.md).
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| id | UUID PK | |
+| nombre | TEXT | "LA JANDA", "SET A – SET B" |
+| padre_id | UUID FK → agrupacion_logica | anidamiento (nullable): línea-nombre → circuito → tramo |
+
+> **Pertenencia 1:N** vía `activo_red.agrupacion_id`. Cada activo cuelga del nivel más
+> específico al que pertenece en exclusiva; la pertenencia a los niveles superiores es
+> **transitiva** por `padre_id`. No es `activo_red` (no es tangible): su traza es derivada
+> (`ST_Union` de sus tramos), no un dato.
+>
+> **Frontera normativa:** `agrupacion_logica` agrupa **líneas** (**RD 223/2008**, Reglamento
+> de líneas de AT); `envolvente` agrupa **instalaciones** (**RD 337/2014**, Reglamento de
+> instalaciones de AT). Son ortogonales: un activo puede tener ambas.
 
 ### `linea` — conductores aéreos y subterráneos
 
@@ -381,6 +412,7 @@ Resumen; el detalle y las invariantes R1–R8 están en
 | linea, elemento_corte, transformador | 2 | no |
 | embarrado, empalme | 1 | **sí (N)** |
 | apoyo, elemento_medida, pararrayos, red_tierra, envolvente | 0 | — |
+| unidad_fv, unidad_eolica, unidad_almacenamiento | 1 | no (hoja/fuente) |
 
 - Terminales = 0 ⟺ no conductor, fuera del grafo, vinculado por **contención**.
 - Misma tensión de servicio en todos los terminales de un nodo (R1).
@@ -400,10 +432,12 @@ Resumen; el detalle y las invariantes R1–R8 están en
 
 ## Pendiente de definir
 
-- **Generación** (`elemento_generacion`, `subcampo_fv`…): pendiente de revisión
-  bajo los criterios consolidados (ver `modelo-datos-generacion.md`).
-- **Agrupaciones lógicas** sin recinto físico (p. ej. "línea MT-15 y todos sus
-  apoyos a lo largo de 30 km"): sesión transversal pendiente.
+- **Generación**: consolidada en [modelo-datos-generacion.md](modelo-datos-generacion.md)
+  (unidades de generación como activos de red con 1 terminal; planta como `envolvente`).
+- **Líneas existentes y rotura/inserción en anillo:** estudio en
+  [estudios/estudio-lineas-existentes-y-rotura.md](../estudios/estudio-lineas-existentes-y-rotura.md).
+- **Deudas menores** (tipología de empalmes, compensadores shunt, equipos de neutro,
+  auxiliares no conductores): [estudios/pendientes-modelado.md](../estudios/pendientes-modelado.md).
 - Tipología de **conductores** y de **aisladores**: sesión propia.
 - Integración con BDDAT: titularidad (con histórico), expediente, estado
   administrativo (referencian al `activo_red.id`; ver ADR-000).

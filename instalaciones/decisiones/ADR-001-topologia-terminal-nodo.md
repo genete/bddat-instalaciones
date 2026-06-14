@@ -50,11 +50,17 @@ Se adopta el patrón **Terminal–ConnectivityNode** del estándar IEC CIM 61970
 | pararrayos | 0 | — |
 | red_tierra | 0 | — |
 | envolvente | 0 | — |
+| unidad_fv | 1 | no |
+| unidad_eolica | 1 | no |
+| unidad_almacenamiento | 1 | no |
 
 Notas:
 - `apoyo` = 0 siempre (es estructura; el terminal de extremo es de la línea, no del apoyo).
 - `empalme` = 1 y multiconexión: es un "embarrado exclusivo de líneas".
 - 3 devanados se modelan como 2 transformadores + embarrado (caso excepcional AT).
+- `unidad_*` (generación) = **1 terminal, sin multiconexión**: son **hojas/fuente** del
+  grafo (primer caso de 1 terminal sin multiconexión). Tienen tensión propia (salida AC)
+  y definen el nodo (R3). Ver [modelo-datos-generacion.md](../arquitectura/modelo-datos-generacion.md).
 
 Estas reglas **no se implementan en la base de datos** (no son constraints ni
 triggers): viven en el **backend** como validación. Se documentan aquí como
